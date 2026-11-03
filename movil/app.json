@@ -1,0 +1,28 @@
+{
+  "expo": {
+    "name": "Tonea",
+    "slug": "tonea-movil",
+    "version": "1.0.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#191829",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#191829"
+    },
+    "android": {
+      "package": "app.tonea.movil",
+      "adaptiveIcon": {
+        "backgroundColor": "#191829",
+        "foregroundImage": "./assets/icon.png"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "app.tonea.movil",
+      "supportsTablet": true
+    },
+    "plugins": [
+      "expo-status-bar"
+    ]
+  }
+}
