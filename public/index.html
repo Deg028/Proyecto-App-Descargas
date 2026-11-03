@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="es" data-theme="coral">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#191829">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Tonea · Descarga videos y MP3 con un enlace</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<a class="skip" href="#main">Saltar al contenido</a>
+<div id="app">
+  <header class="top">
+    <div class="logo">Tonea<small>descargas</small></div>
+    <div class="top-actions">
+      <button class="icon-btn" id="btnAccount" aria-label="Cuenta"><i data-icon="user"></i></button>
+      <button class="icon-btn" id="btnTheme" aria-label="Cambiar tema y color"><i data-icon="palette"></i></button>
+    </div>
+  </header>
+
+  <nav class="tabbar" aria-label="Navegación principal">
+    <button data-view="home" class="on"><i data-icon="home"></i><span>Inicio</span></button>
+    <button data-view="explore"><i data-icon="compass"></i><span>Explorar</span></button>
+    <button data-view="downloads"><i data-icon="download"></i><span>Descargas</span><b class="dot" id="navDot" hidden></b></button>
+    <button data-view="library"><i data-icon="music"></i><span>Biblioteca</span></button>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <!-- INICIO -->
+    <section id="view-home" class="view active" aria-label="Inicio">
+      <div class="hero">
+        <h1>Pega un enlace de video</h1>
+        <p class="muted">Copia el enlace, pégalo aquí y elige formato y calidad. Funciona con YouTube y muchos otros sitios.</p>
+      </div>
+      <form id="formUrl" class="field-card" autocomplete="off">
+        <label class="sr-only" for="inpUrl">Enlace del video</label>
+        <div class="input-row">
+          <i data-icon="link"></i>
+          <input id="inpUrl" type="url" inputmode="url" placeholder="https://youtu.be/…" spellcheck="false">
+          <button type="button" class="chip-btn" id="btnClear" aria-label="Borrar" hidden><i data-icon="close"></i></button>
+        </div>
+        <div class="row-gap">
+          <button type="button" class="btn secondary" id="btnPaste"><i data-icon="clipboard"></i>Pegar</button>
+          <button type="submit" class="btn primary" id="btnAnalyze"><i data-icon="search"></i>Analizar</button>
+        </div>
+        <p class="error" id="homeError" role="alert" hidden></p>
+      </form>
+
+      <div class="or"><span>o</span></div>
+      <div class="row-gap">
+        <button class="btn outline" data-go="explore"><i data-icon="search"></i>Buscar por nombre</button>
+        <button class="btn outline" data-go="explore"><i data-icon="play"></i>Ver videos</button>
+      </div>
+
+      <ol class="steps" aria-label="Cómo funciona">
+        <li><b>1</b><span>Copia</span><small>el enlace del video</small></li>
+        <li><b>2</b><span>Pega</span><small>aquí o abre el sitio en Tonea</small></li>
+        <li><b>3</b><span>Elige</span><small>video o MP3, formato y calidad</small></li>
+      </ol>
+
+      <div id="recentWrap" hidden>
+        <div class="section-title"><h2>Recientes</h2><button class="link" id="btnClearRecent">Borrar</button></div>
+        <div id="recentList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- OPCIONES -->
+    <section id="view-options" class="view" aria-label="Opciones de descarga">
+      <div class="title-row"><button class="icon-btn" id="btnOptBack" aria-label="Volver"><i data-icon="back"></i></button><h1>Opciones</h1></div>
+      <div class="video-card">
+        <div class="thumb big"><img id="optThumb" alt=""><span class="badge" id="optDur"></span></div>
+        <h2 id="optTitle">—</h2>
+        <p class="muted" id="optChannel"></p>
+      </div>
+      <div class="segmented" role="tablist">
+        <button role="tab" id="tabVideo" class="on" aria-selected="true">Video</button>
+        <button role="tab" id="tabAudio" aria-selected="false">Audio</button>
+      </div>
+      <div class="group"><span class="label">Formato</span><div id="fmtChips" class="chips"></div></div>
+      <div class="group" id="qualityGroup"><span class="label" id="qualityLabel">Calidad</span><div id="qualityTiles" class="tiles"></div></div>
+      <p class="muted small" id="optNote"></p>
+      <button class="btn primary big-btn" id="btnDownload"><i data-icon="download"></i><span id="ctaText">Descargar</span></button>
+    </section>
+
+    <!-- EXPLORAR -->
+    <section id="view-explore" class="view" aria-label="Explorar">
+      <h1 class="page-title">Explorar</h1>
+      <form id="formSearch" class="input-row solo" autocomplete="off">
+        <i data-icon="search"></i>
+        <label class="sr-only" for="inpSearch">Buscar</label>
+        <input id="inpSearch" type="search" placeholder="Busca videos o canciones">
+        <button class="chip-btn on" type="submit">Buscar</button>
+      </form>
+      <p class="error" id="searchError" role="alert" hidden></p>
+      <div class="cats" id="cats" role="group" aria-label="Categorías"></div>
+      <div id="searchResults" class="vgrid"></div>
+      <div id="sitesBlock">
+        <div class="section-title"><h2>Otros sitios</h2></div>
+        <p class="muted small" id="sitesHint">Ábrelos dentro de Tonea, entra al video que quieras y pulsa «Descargar este video».</p>
+        <div id="sitesGrid" class="sites"></div>
+      </div>
+    </section>
+
+    <!-- REPRODUCTOR PROPIO -->
+    <section id="view-watch" class="view" aria-label="Reproductor">
+      <div class="watch">
+        <div class="watch-main">
+          <div class="wp" id="wp">
+            <div id="ytHost"></div>
+            <button class="wp-shield" id="wpShield" aria-label="Reproducir o pausar"></button>
+            <div class="wp-state" id="wpState" hidden></div>
+            <div class="wp-bar" id="wpBar">
+              <input type="range" id="wpSeek" min="0" max="1000" value="0" aria-label="Posición">
+              <div class="wp-row">
+                <button class="icon-btn" id="wpPlay" aria-label="Reproducir"><i data-icon="play"></i></button>
+                <span class="wp-time" id="wpTime">0:00 / 0:00</span>
+                <span class="grow"></span>
+                <button class="icon-btn" id="wpMute" aria-label="Silenciar"><i data-icon="volume"></i></button>
+                <input type="range" id="wpVol" min="0" max="100" value="80" aria-label="Volumen">
+                <button class="icon-btn" id="wpFull" aria-label="Pantalla completa"><i data-icon="expand"></i></button>
+              </div>
+            </div>
+          </div>
+          <h1 class="watch-title" id="wTitle"></h1>
+          <p class="muted" id="wChannel"></p>
+          <div class="watch-actions">
+            <button class="btn outline" id="btnWatchBack"><i data-icon="back"></i>Volver</button>
+            <button class="btn primary" id="btnWatchDl"><i data-icon="download"></i><span id="wDlText">Descargar</span></button>
+          </div>
+        </div>
+        <aside class="watch-side">
+          <div class="section-title"><h2>Más como este</h2></div>
+          <div id="wRelated" class="list"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- NAVEGADOR INTEGRADO -->
+    <section id="view-browser" class="view" aria-label="Navegador">
+      <div class="browser-bar">
+        <button class="icon-btn" id="brBack" aria-label="Atrás" disabled><i data-icon="back"></i></button>
+        <button class="icon-btn" id="brFwd" aria-label="Adelante" disabled><i data-icon="forward"></i></button>
+        <button class="icon-btn" id="brReload" aria-label="Recargar"><i data-icon="reload"></i></button>
+        <form id="brForm" class="input-row solo" autocomplete="off">
+          <i data-icon="lock"></i>
+          <label class="sr-only" for="brUrl">Dirección</label>
+          <input id="brUrl" type="text" inputmode="url" placeholder="Busca o escribe una dirección" spellcheck="false">
+        </form>
+        <button class="icon-btn" id="brClose" aria-label="Cerrar navegador"><i data-icon="close"></i></button>
+      </div>
+      <div class="browser-frame" id="brFrame"></div>
+      <div class="browser-note" id="brNote" hidden>
+        <i data-icon="globe"></i>
+        <h2>El navegador integrado está en la app de escritorio</h2>
+        <p class="muted">Los sitios como YouTube no permiten mostrarse dentro de una página web normal. Abre Tonea como app de escritorio con <b>npm run app</b> para navegar sin salir de ella.</p>
+        <button class="btn outline" id="brOpenExternal"><i data-icon="globe"></i>Abrir en el navegador del sistema</button>
+      </div>
+      <button class="btn primary download-fab" id="brDownload"><i data-icon="download"></i><span id="brDownloadText">Descargar este video</span></button>
+    </section>
+
+    <!-- DESCARGAS -->
+    <section id="view-downloads" class="view" aria-label="Descargas">
+      <h1 class="page-title">Descargas</h1>
+      <div id="jobList" class="list"></div>
+      <div id="jobEmpty" class="empty" hidden><i data-icon="download"></i><p>No hay descargas todavía.</p><button class="btn primary" data-go="home">Pegar un enlace</button></div>
+    </section>
+
+    <!-- BIBLIOTECA -->
+    <section id="view-library" class="view" aria-label="Biblioteca">
+      <h1 class="page-title">Biblioteca</h1>
+      <div class="filters" id="libFilters">
+        <button class="chip-btn on" data-f="all">Todo</button><button class="chip-btn" data-f="video">Video</button><button class="chip-btn" data-f="audio">Audio</button>
+      </div>
+      <p class="muted small" id="libInfo"></p>
+      <div id="libList" class="list"></div>
+      <div id="libEmpty" class="empty" hidden><i data-icon="music"></i><p>Aquí verás lo que descargues.</p></div>
+    </section>
+  </main>
+</div>
+
+<!-- Panel de apariencia -->
+<div class="overlay" id="overlay" hidden></div>
+<div class="sheet" id="sheetTheme" role="dialog" aria-modal="true" aria-label="Apariencia" hidden>
+  <div class="grab"></div>
+  <div class="sheet-head"><h2>Apariencia</h2><button class="icon-btn" id="btnCloseTheme" aria-label="Cerrar"><i data-icon="close"></i></button></div>
+  <span class="label">Tema</span>
+  <div id="themeList" class="theme-list"></div>
+  <span class="label">Color de acento</span>
+  <div id="accentList" class="accents"></div>
+</div>
+
+<!-- Panel de cuenta -->
+<div class="sheet" id="sheetAccount" role="dialog" aria-modal="true" aria-label="Cuenta" hidden>
+  <div class="grab"></div>
+  <div class="sheet-head"><h2>Cuenta</h2><button class="icon-btn" id="btnCloseAccount" aria-label="Cerrar"><i data-icon="close"></i></button></div>
+  <div id="accountBody"></div>
+</div>
+
+<!-- Reproductor -->
+<div class="modal" id="player" role="dialog" aria-modal="true" aria-label="Reproductor" hidden>
+  <div class="modal-box">
+    <div class="sheet-head"><h2 id="playerTitle">Reproduciendo</h2><button class="icon-btn" id="btnClosePlayer" aria-label="Cerrar"><i data-icon="close"></i></button></div>
+    <div id="playerBody"></div>
+  </div>
+</div>
+
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+<script>if("serviceWorker"in navigator&&location.protocol!=="file:")addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))</script>
+</body>
+</html>
