@@ -117,8 +117,9 @@ function show(view) {
   moveTabInd();
   window.scrollTo({ top: 0 });
   if (booted) { const h = $('#view-' + view + ' h1'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } else $('#main').focus({ preventScroll: true }); }
-  if (view === 'downloads') loadJobs();
-  if (view === 'library') loadFiles();
+  // pinta al instante con lo que ya se conoce y actualiza en segundo plano
+  if (view === 'downloads') { renderJobs(); loadJobs(); }
+  if (view === 'library') { renderFiles(); loadFiles(); }
   if (view === 'browser') fitBrowser();
 }
 
@@ -579,7 +580,7 @@ $('#sitesGrid').innerHTML = SITES.map(([n, u]) => `<button class="site" data-ope
 if (!desktop) $('#sitesHint').textContent = 'Abre el sitio, copia el enlace del video y pégalo en Inicio. (Para abrirlos dentro de Tonea usa la app de escritorio.)';
 applyTheme(); paintIcons(); renderRecent(); loadAccount(); booted = true; moveTabInd(); checkClip();
 if (document.fonts) document.fonts.ready.then(moveTabInd);
-setInterval(loadJobs, 1200); loadJobs();
+setInterval(loadJobs, 1200); loadJobs(); loadFiles();
 const startView = location.hash.slice(1);
 if (['home', 'explore', 'downloads', 'library', 'browser'].includes(startView) && !(startView === 'browser' && !desktop)) show(startView);
 fetch('/api/health').then(r => r.json()).then(h => { if (!h.ytdlp || !h.ffmpeg) toast('Faltan herramientas: ejecuta "npm run setup".'); }).catch(() => {});
