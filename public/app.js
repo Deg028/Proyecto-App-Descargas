@@ -63,7 +63,11 @@ const THEMES = [
   { id: 'medianoche', name: 'Medianoche', desc: 'Oscuro azulado', c: ['#0B0D12', '#151922', '#7C9BFF'] },
   { id: 'amoled', name: 'Negro puro', desc: 'AMOLED, ahorra batería', c: ['#000000', '#101113', '#3DDC97'] },
   { id: 'atardecer', name: 'Atardecer', desc: 'Claro y cálido', c: ['#FBF6F1', '#FFFFFF', '#C2410C'] },
-  { id: 'lavanda', name: 'Lavanda', desc: 'Claro con toque violeta', c: ['#F6F4FB', '#FFFFFF', '#6A3DF0'] }
+  { id: 'lavanda', name: 'Lavanda', desc: 'Claro con toque violeta', c: ['#F6F4FB', '#FFFFFF', '#6A3DF0'] },
+  { id: 'indigo', name: 'Índigo eléctrico', desc: 'Violeta profundo con acento cian', c: ['#2A1D86', '#3C2CAB', '#22CCF5'] },
+  { id: 'carbon', name: 'Carbón y durazno', desc: 'Gris cálido con acento durazno', c: ['#2B2B2D', '#363639', '#F7B98A'] },
+  { id: 'marino', name: 'Marino', desc: 'Casi negro con acento azul', c: ['#101217', '#171A21', '#4A9BF0'] },
+  { id: 'cielo', name: 'Cielo índigo', desc: 'Claro azulado con acento índigo', c: ['#DDE9F7', '#F4F8FD', '#4B3FC4'] }
 ];
 const ACCENTS = [['#4C6FFF', 'Azul'], ['#2DD4A0', 'Menta'], ['#FF7A45', 'Naranja'], ['#8B5CF6', 'Violeta'], ['#F0527C', 'Rosa']];
 const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
