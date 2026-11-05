@@ -114,6 +114,7 @@ function show(view) {
   if (view !== 'watch') stopWatch();
   const tab = ['browser', 'watch'].includes(view) ? 'explore' : view === 'options' ? (['browser', 'explore', 'watch'].includes(state.from) ? 'explore' : 'home') : view;
   $$('.tabbar button').forEach(b => { const on = b.dataset.view === tab; b.classList.toggle('on', on); on ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'); });
+  moveTabInd();
   window.scrollTo({ top: 0 });
   if (booted) { const h = $('#view-' + view + ' h1'); if (h) { h.tabIndex = -1; h.focus({ preventScroll: true }); } else $('#main').focus({ preventScroll: true }); }
   if (view === 'downloads') loadJobs();
@@ -121,11 +122,19 @@ function show(view) {
   if (view === 'browser') fitBrowser();
 }
 
+function moveTabInd() {
+  const on = $('.tabbar button.on'), ind = $('#tabInd'); if (!on || !ind) return;
+  ind.style.setProperty('--x', on.offsetLeft + 'px'); ind.style.setProperty('--y', on.offsetTop + 'px');
+  ind.style.setProperty('--w', on.offsetWidth + 'px'); ind.style.setProperty('--h', on.offsetHeight + 'px');
+}
+addEventListener('resize', moveTabInd);
+
 /* ============ inicio / análisis ============ */
 const state = { info: null, kind: 'video', vf: 'mp4', vq: 720, af: 'mp3', aq: 192, filter: 'all', files: [], jobs: [], from: 'home' };
 
 function homeError(msg) { const e = $('#homeError'); e.textContent = msg || ''; e.hidden = !msg; }
 function setBusy(b) {
+  $('#formUrl').classList.toggle('busy', b);
   const btn = $('#btnAnalyze'); btn.disabled = b; $('#btnPaste').disabled = b;
   btn.innerHTML = b ? '<span class="spin"></span>Analizando…' : ic('search') + 'Analizar'; paintIcons(btn);
 }
@@ -531,7 +540,26 @@ $('#tabAudio').addEventListener('click', () => { state.kind = 'audio'; renderOpt
 $('#btnDownload').addEventListener('click', startDownload);
 
 const inp = $('#inpUrl');
-inp.addEventListener('input', () => { $('#btnClear').hidden = !inp.value; homeError(''); });
+// onda del campo: barras que respiran en reposo y suben al escribir o analizar
+const WAVE = Array.from({ length: 44 }, (_, i) => (0.35 + 0.65 * Math.abs(Math.sin(i * 0.62) * Math.cos(i * 0.21 + 1))).toFixed(2));
+$('#wave').innerHTML = WAVE.map((a, i) => '<span style="--a:' + a + ';--d:' + ((i * 83) % 1400) + 'ms"></span>').join('');
+let typingT;
+function bumpWave() { const f = $('#formUrl'); f.classList.add('typing'); clearTimeout(typingT); typingT = setTimeout(() => f.classList.remove('typing'), 450); }
+inp.addEventListener('input', () => { $('#btnClear').hidden = !inp.value; homeError(''); bumpWave(); checkClip(); });
+// ofrece el enlace copiado (si el navegador deja leer el portapapeles sin preguntar)
+let clipUrl = '';
+async function checkClip() {
+  const chip = $('#pasteChip');
+  try {
+    if (currentView !== 'home' || document.hidden) return;
+    const t = (await navigator.clipboard.readText()).trim();
+    const u = /^https?://S+$/i.test(t) ? new URL(t) : null;
+    if (!u || t === inp.value.trim()) { chip.hidden = true; return; }
+    clipUrl = t; $('#pasteHost').textContent = u.hostname.replace(/^www./, ''); chip.hidden = false;
+  } catch { chip.hidden = true; }
+}
+$('#pasteChip').addEventListener('click', () => { inp.value = clipUrl; $('#btnClear').hidden = false; $('#pasteChip').hidden = true; analyze(clipUrl); });
+addEventListener('focus', checkClip); document.addEventListener('visibilitychange', checkClip);
 $('#btnClear').addEventListener('click', () => { inp.value = ''; $('#btnClear').hidden = true; inp.focus(); });
 $('#formUrl').addEventListener('submit', e => { e.preventDefault(); analyze(inp.value); });
 $('#btnPaste').addEventListener('click', async () => {
@@ -549,7 +577,8 @@ search(CATS[0]);   // el feed inicial de Explorar
 /* ============ arranque ============ */
 $('#sitesGrid').innerHTML = SITES.map(([n, u]) => `<button class="site" data-open="${u}" style="background:none;border:0;padding:0"><b>${n[0]}</b>${n}</button>`).join('');
 if (!desktop) $('#sitesHint').textContent = 'Abre el sitio, copia el enlace del video y pégalo en Inicio. (Para abrirlos dentro de Tonea usa la app de escritorio.)';
-applyTheme(); paintIcons(); renderRecent(); loadAccount(); booted = true;
+applyTheme(); paintIcons(); renderRecent(); loadAccount(); booted = true; moveTabInd(); checkClip();
+if (document.fonts) document.fonts.ready.then(moveTabInd);
 setInterval(loadJobs, 1200); loadJobs();
 const startView = location.hash.slice(1);
 if (['home', 'explore', 'downloads', 'library', 'browser'].includes(startView) && !(startView === 'browser' && !desktop)) show(startView);

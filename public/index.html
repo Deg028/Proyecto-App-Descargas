@@ -12,14 +12,14 @@
 <title>Tonea · Descarga videos y MP3 con un enlace</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <a class="skip" href="#main">Saltar al contenido</a>
 <div id="app">
   <header class="top">
-    <div class="logo">Tonea<small>descargas</small></div>
+    <div class="logo"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>Tonea</div>
     <div class="top-actions">
       <button class="icon-btn" id="btnAccount" aria-label="Cuenta"><i data-icon="user"></i></button>
       <button class="icon-btn" id="btnTheme" aria-label="Cambiar tema y color"><i data-icon="palette"></i></button>
@@ -27,6 +27,7 @@
   </header>
 
   <nav class="tabbar" aria-label="Navegación principal">
+    <span class="tab-ind" id="tabInd" aria-hidden="true"></span>
     <button data-view="home" class="on"><i data-icon="home"></i><span>Inicio</span></button>
     <button data-view="explore"><i data-icon="compass"></i><span>Explorar</span></button>
     <button data-view="downloads"><i data-icon="download"></i><span>Descargas</span><b class="dot" id="navDot" hidden></b></button>
@@ -37,16 +38,18 @@
     <!-- INICIO -->
     <section id="view-home" class="view active" aria-label="Inicio">
       <div class="hero">
-        <h1>Pega un enlace de video</h1>
-        <p class="muted">Copia el enlace, pégalo aquí y elige formato y calidad. Funciona con YouTube y muchos otros sitios.</p>
+        <h1>¿Qué quieres llevarte?</h1>
+        <p class="muted">Pega un enlace y elige cómo guardarlo: video o MP3.</p>
       </div>
-      <form id="formUrl" class="field-card" autocomplete="off">
+      <form id="formUrl" class="slot" autocomplete="off">
+        <div class="wave" id="wave" aria-hidden="true"></div>
         <label class="sr-only" for="inpUrl">Enlace del video</label>
-        <div class="input-row">
+        <div class="slot-in">
           <i data-icon="link"></i>
-          <input id="inpUrl" type="url" inputmode="url" placeholder="https://youtu.be/…" spellcheck="false">
-          <button type="button" class="chip-btn" id="btnClear" aria-label="Borrar" hidden><i data-icon="close"></i></button>
+          <input id="inpUrl" type="url" inputmode="url" placeholder="Pega aquí el enlace" spellcheck="false">
+          <button type="button" class="chip-btn" id="btnClear" aria-label="Borrar enlace" hidden><i data-icon="close"></i></button>
         </div>
+        <button type="button" class="paste-chip" id="pasteChip" hidden><i data-icon="clipboard"></i><span>Usar el enlace copiado <b id="pasteHost"></b></span></button>
         <div class="row-gap">
           <button type="button" class="btn secondary" id="btnPaste"><i data-icon="clipboard"></i>Pegar</button>
           <button type="submit" class="btn primary" id="btnAnalyze"><i data-icon="search"></i>Analizar</button>
@@ -54,17 +57,10 @@
         <p class="error" id="homeError" role="alert" hidden></p>
       </form>
 
-      <div class="or"><span>o</span></div>
-      <div class="row-gap">
-        <button class="btn outline" data-go="explore"><i data-icon="search"></i>Buscar por nombre</button>
+      <div class="row-gap alt">
+        <button class="btn outline" data-go="explore"><i data-icon="search"></i>Buscar videos</button>
         <button class="btn outline" data-go="explore"><i data-icon="play"></i>Ver videos</button>
       </div>
-
-      <ol class="steps" aria-label="Cómo funciona">
-        <li><b>1</b><span>Copia</span><small>el enlace del video</small></li>
-        <li><b>2</b><span>Pega</span><small>aquí o abre el sitio en Tonea</small></li>
-        <li><b>3</b><span>Elige</span><small>video o MP3, formato y calidad</small></li>
-      </ol>
 
       <div id="recentWrap" hidden>
         <div class="section-title"><h2>Recientes</h2><button class="link" id="btnClearRecent">Borrar</button></div>
