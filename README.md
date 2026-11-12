@@ -59,6 +59,10 @@ La app vive en esta misma carpeta (`EscritorioAppDescarga`). No hay instalador: 
 | Servidor y descargas | `server.js`, carpeta `downloads/` |
 | Ventana principal de Electron | `main.js` |
 
+## Temas y contraste
+
+`npm run contrast` mide el contraste WCAG 2.2 de cada tema de `public/style.css` (texto 4.5:1, elementos de interfaz 3:1) y falla si algún par no llega. Ejecútalo al añadir o cambiar un tema.
+
 ## Tonea en el móvil (PWA)
 
 Tonea ya se puede instalar en el teléfono como app (icono, pantalla completa, abre sin barra del navegador):

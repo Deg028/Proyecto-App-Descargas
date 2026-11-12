@@ -9,6 +9,7 @@
     "start": "node server.js",
     "app": "electron .",
     "qr": "node qr.js",
+    "contrast": "node scripts/contrast.js",
     "app:debug": "electron . --debug",
     "app:movil": "electron . --size=390x844 --debug",
     "update-ytdlp": "node setup.js --update"
