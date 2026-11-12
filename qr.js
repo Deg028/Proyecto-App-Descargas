@@ -2,7 +2,7 @@
 process.env.HOST = '0.0.0.0';
 const os = require('os'), fs = require('fs'), path = require('path'), { exec } = require('child_process');
 const QR = require('qrcode');
-const { start, PORT } = require('./server');
+const { start, PORT, TOKEN } = require('./server');
 
 // Prefiere la interfaz Wi-Fi/Ethernet real y deja al final los adaptadores virtuales (VirtualBox, WSL, Docker…).
 const ips = Object.entries(os.networkInterfaces()).flatMap(([name, list]) => list.filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, ip: a.address })))
@@ -10,7 +10,7 @@ const ips = Object.entries(os.networkInterfaces()).flatMap(([name, list]) => lis
 
 start().catch(e => { if (e.code !== 'EADDRINUSE') throw e; }).then(async () => {
   if (!ips.length) return console.log('No encontré una red local. Conéctate a una Wi-Fi.');
-  const urls = ips.map(i => ({ ...i, url: `http://${i.ip}:${PORT}` }));
+  const urls = ips.map(i => ({ ...i, url: `http://${i.ip}:${PORT}/?t=${TOKEN}` }));
   console.log('\nEscanea con la cámara del teléfono (misma Wi-Fi que este PC):\n');
   console.log(await QR.toString(urls[0].url, { type: 'terminal', small: true }));
   urls.forEach((u, i) => console.log((i ? '   otra: ' : '   ') + u.url + '  (' + u.name + ')'));

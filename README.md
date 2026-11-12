@@ -63,14 +63,14 @@ La app vive en esta misma carpeta (`EscritorioAppDescarga`). No hay instalador: 
 
 Tonea ya se puede instalar en el teléfono como app (icono, pantalla completa, abre sin barra del navegador):
 
-1. En el PC: `$env:HOST="0.0.0.0"; npm start` y averigua la IP del PC (`ipconfig`).
-2. En el móvil (misma Wi-Fi) abre `http://IP-DEL-PC:3000` → menú del navegador → **Añadir a pantalla de inicio**. Para que Chrome ofrezca *Instalar app* de verdad hace falta HTTPS; en una red local solo se añade como acceso directo.
+1. En el PC: `$env:HOST="0.0.0.0"; npm start`. La consola muestra la **clave de acceso**; averigua también la IP del PC (`ipconfig`).
+2. En el móvil (misma Wi-Fi) abre `http://IP-DEL-PC:3000/?t=CLAVE` → menú del navegador → **Añadir a pantalla de inicio**. Para que Chrome ofrezca *Instalar app* de verdad hace falta HTTPS; en una red local solo se añade como acceso directo.
 
 Cuidado de interfaz y accesibilidad incluidos: objetos táctiles de 48 px en pantallas táctiles, barra inferior con zona segura, foco visible de alto contraste, enlace «Saltar al contenido», foco al encabezado al cambiar de pantalla (lectores de pantalla), `aria-current` en la pestaña activa, reproductor operable con teclado (espacio, ←/→ ±5 s, M silenciar, F pantalla completa), barra de progreso con tiempo hablado, respeto a «reducir movimiento» y al modo de contraste forzado, y todo el texto escalable. En el móvil el reproductor oculta el volumen (se usan los botones del teléfono).
 
 ## Abrir en el teléfono con un QR
 
-`npm run qr` arranca Tonea en la red local, muestra un QR en el terminal y abre una página con los códigos. Escanéalo con la cámara del teléfono (misma Wi-Fi) y se abre Tonea en el navegador del móvil.
+`npm run qr` arranca Tonea en la red local, muestra un QR en el terminal y abre una página con los códigos. El QR ya incluye la clave de acceso. Escanéalo con la cámara del teléfono (misma Wi-Fi) y se abre Tonea en el navegador del móvil.
 
 ## Probar en el teléfono con Expo Go
 
@@ -79,13 +79,15 @@ La carpeta `movil/` es un proyecto Expo que muestra Tonea en un WebView apuntand
 1. Instala **Expo Go** en el teléfono (Play Store / App Store).
 2. Terminal 1, en la raíz: `$env:HOST="0.0.0.0"; npm start`  (si Windows pregunta por el firewall, permite redes privadas).
 3. Terminal 2: `cd movil; npm install; npx expo start` y escanea el QR con Expo Go (Android) o con la cámara (iPhone).
-4. En la primera pantalla escribe la IP del PC con el puerto (ej. `192.168.1.182:3000`; mírala con `ipconfig`). Queda guardada. Para cambiarla, mantén pulsada la esquina superior izquierda (sobre el logo) casi 1 segundo.
+4. En la primera pantalla pega el enlace del PC con la clave (ej. `192.168.1.182:3000/?t=CLAVE`; la clave la muestra `npm run qr` o la consola). Queda guardada. Para cambiarla, mantén pulsada la esquina superior izquierda (sobre el logo) casi 1 segundo.
 
 Teléfono y PC deben estar en la misma Wi-Fi. Cambios en `public/` se ven al recargar la app (agita el teléfono → *Reload*); cambios en `movil/App.js` recargan solos. Limitación: los archivos descargados quedan en el PC; guardarlos en el teléfono requeriría añadir `expo-file-system` (siguiente paso).
 
 ## Uso desde el móvil
 
-`$env:HOST="0.0.0.0"; npm start` y abre `http://IP-DEL-PC:3000` en la misma red Wi-Fi. No hay contraseña: hazlo solo en redes de confianza. El navegador integrado no está disponible en el móvil.
+`$env:HOST="0.0.0.0"; npm start` y abre `http://IP-DEL-PC:3000/?t=CLAVE` en la misma red Wi-Fi.
+
+**Clave de acceso:** cuando `HOST` no es localhost, todo lo que llegue desde otro dispositivo exige una clave (`TONEA_TOKEN` en `.env`, o una generada y guardada en `data/token.txt`). La primera visita con `?t=CLAVE` guarda una cookie y ya no hace falta repetirla. Desde el propio PC no se pide. Si pones Tonea detrás de un proxy inverso o túnel, las peticiones llegan como locales y se saltan la clave: protégelo en el proxy. Sigue siendo HTTP sin cifrar: úsalo solo en redes de confianza. El navegador integrado no está disponible en el móvil.
 
 ## Problemas frecuentes
 

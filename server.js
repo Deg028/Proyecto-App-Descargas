@@ -63,6 +63,34 @@ const ownerOf = req => { const u = getUser(req); return u ? u.id : 'guest'; };
 const htmlEsc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const msgPage = (title, msg) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${htmlEsc(title)}</title><body style="font-family:system-ui,sans-serif;background:#191829;color:#f2eef6;display:grid;place-items:center;min-height:100vh;margin:0"><div style="max-width:420px;padding:24px;text-align:center"><h1 style="margin:0 0 8px">${htmlEsc(title)}</h1><p style="color:#aeabc6;line-height:1.5">${htmlEsc(msg)}</p></div></body>`;
 
+// ---------- acceso desde la red ----------
+// Con HOST distinto de localhost (p. ej. 0.0.0.0 para el móvil), quien no venga de este PC necesita la clave de acceso.
+// La clave sale de TONEA_TOKEN o se genera una vez y se guarda en data/token.txt. Se entrega con ?t=CLAVE y queda en una cookie.
+const LOOPBACK = ['127.0.0.1', '::1', 'localhost'];
+const EXPOSED = !LOOPBACK.includes(HOST);
+const TOKEN_FILE = path.join(DATA, 'token.txt');
+function loadToken() {
+  if (process.env.TONEA_TOKEN) return process.env.TONEA_TOKEN;
+  try { const t = fs.readFileSync(TOKEN_FILE, 'utf8').trim(); if (t) return t; } catch { /* primera vez */ }
+  const t = b64u(crypto.randomBytes(18));
+  try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(TOKEN_FILE, t); } catch { /* sin disco: la clave dura hasta reiniciar */ }
+  return t;
+}
+const TOKEN = EXPOSED ? loadToken() : '';
+const sameToken = v => { const a = Buffer.from(String(v || '')), b = Buffer.from(TOKEN); return a.length === b.length && crypto.timingSafeEqual(a, b); };
+const isLocal = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress);
+const PUBLIC_PATHS = /^\/(manifest\.webmanifest|icon[^/]*)$/;
+app.use((req, res, next) => {
+  if (!EXPOSED || isLocal(req) || PUBLIC_PATHS.test(req.path)) return next();
+  if (sameToken(readCookie(req, 'tonea_key'))) return next();
+  if (sameToken(req.query.t)) {
+    res.setHeader('Set-Cookie', `tonea_key=${encodeURIComponent(TOKEN)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000`);
+    return req.method === 'GET' && !req.path.startsWith('/api/') ? res.redirect(req.path) : next();
+  }
+  if (req.path.startsWith('/api/') || req.path.startsWith('/files/')) return res.status(401).json({ error: 'Falta la clave de acceso de Tonea.' });
+  res.status(401).send(msgPage('Acceso protegido', 'Abre Tonea con el enlace o el código QR que muestra el PC (npm run qr), o añade ?t=TU_CLAVE a la dirección.'));
+});
+
 app.get('/api/auth/status', (req, res) => res.json({ configured: !!G.id, redirectUri: REDIRECT, user: getUser(req) }));
 
 app.post('/api/auth/pair', (req, res) => {
@@ -390,11 +418,11 @@ function start() {
   return new Promise((resolve, reject) => {
     const srv = app.listen(PORT, HOST, () => {
       console.log('Tonea lista en http://localhost:' + PORT + (G.id ? ' (inicio de sesión con Google activo)' : ' (sin Google: define GOOGLE_CLIENT_ID para activarlo)'));
-      if (HOST === '0.0.0.0') console.log('Accesible desde tu red local (por ejemplo desde el móvil).');
+      if (EXPOSED) console.log('Accesible desde tu red local. Clave de acceso (para ?t=): ' + TOKEN);
       resolve(srv);
     });
     srv.on('error', reject);
   });
 }
-module.exports = { start, PORT };
+module.exports = { start, PORT, TOKEN };
 if (require.main === module) start();

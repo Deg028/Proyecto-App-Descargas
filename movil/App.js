@@ -6,7 +6,8 @@ import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const KEY = 'tonea.server', BG = '#191829', ACCENT = '#e08d79', INK = '#f4f1ff', MUTED = '#a9a5c8';
-const normalize = v => { v = v.trim().replace(/\/+$/, ''); if (!v) return ''; if (!/^https?:\/\//i.test(v)) v = 'http://' + v; return /:\d+$/.test(v) ? v : v + ':3000'; };
+// Acepta "192.168.1.5", "192.168.1.5:3000" o el enlace completo del QR (con ?t=CLAVE).
+const normalize = v => { let [b, q] = v.trim().split('?'); b = b.replace(/\/+$/, ''); if (!b) return ''; if (!/^https?:\/\//i.test(b)) b = 'http://' + b; if (!/:\d+$/.test(b)) b += ':3000'; return q ? b + '/?' + q : b; };
 
 export default function App() {
   const [server, setServer] = useState(null), [draft, setDraft] = useState(''), [loaded, setLoaded] = useState(false);
@@ -35,9 +36,9 @@ export default function App() {
         <View style={s.box}>
           <Text style={s.logo} accessibilityRole="header">Tonea</Text>
           <Text style={s.p}>{failed ? 'No se pudo conectar con el servidor.' : 'Conecta con Tonea en tu PC.'}</Text>
-          <Text style={s.small}>1. En el PC ejecuta: $env:HOST="0.0.0.0"; npm start{'\n'}2. Escribe aquí la IP del PC (ipconfig), por ejemplo 192.168.1.182{'\n'}3. El teléfono y el PC deben estar en la misma Wi-Fi.</Text>
+          <Text style={s.small}>1. En el PC ejecuta: $env:HOST="0.0.0.0"; npm start{'\n'}2. Pega aquí el enlace que muestra el PC con npm run qr (incluye la clave ?t=…){'\n'}3. El teléfono y el PC deben estar en la misma Wi-Fi.</Text>
           <Text style={s.label} nativeID="lbl">Dirección del servidor</Text>
-          <TextInput accessibilityLabelledBy="lbl" style={s.input} value={draft} onChangeText={setDraft} placeholder="192.168.1.182:3000" placeholderTextColor={MUTED}
+          <TextInput accessibilityLabelledBy="lbl" style={s.input} value={draft} onChangeText={setDraft} placeholder="192.168.1.182:3000/?t=clave" placeholderTextColor={MUTED}
             autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" onSubmitEditing={connect} />
           <Pressable accessibilityRole="button" onPress={connect} style={({ pressed }) => [s.btn, pressed && { opacity: 0.8 }]}>
             <Text style={s.btnT}>Conectar</Text>
