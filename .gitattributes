@@ -1,0 +1,6 @@
+# Normaliza los saltos de línea: en el repo siempre LF; en Windows se ve CRLF solo si git lo configura.
+* text=auto eol=lf
+*.cmd text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary
