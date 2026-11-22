@@ -403,6 +403,7 @@ button.item:hover .t { color: var(--accent); }
 
 @media (min-width: 900px) {
   .hero h1 { font-size: 44px; max-width: none; }
+  .hero p { max-width: 56ch; }
   .slot { padding: 24px; }
   .tabbar::before { font-weight: 800; letter-spacing: -1px; }
   .tab-ind { border-radius: 16px; }

@@ -167,6 +167,27 @@ function parseUrl(raw) {
   } catch { return null; }
 }
 
+// Traduce los errores de yt-dlp a mensajes comprensibles; si no reconoce el error, conserva el original.
+const ERRORS = [
+  [/Requested format is not available/i, 'Esa calidad o formato no está disponible para este enlace. Prueba con otra calidad.'],
+  [/HTTP Error 404/i, 'No se encontró el contenido (error 404). Revisa el enlace.'],
+  [/Unsupported URL/i, 'Este enlace o sitio no está soportado.'],
+  [/Private video/i, 'El video es privado.'],
+  [/Video unavailable|This video is (?:not available|unavailable)|has been removed/i, 'El video no está disponible.'],
+  [/not available in your country|geo.?restrict/i, 'El contenido no está disponible en tu país.'],
+  [/Sign in to confirm|confirm your age|age.?restricted|\blog ?in\b|login required/i, 'El sitio exige iniciar sesión o verificar la edad.'],
+  [/HTTP Error 403/i, 'El sitio rechazó la descarga (error 403). Prueba más tarde.'],
+  [/HTTP Error 429|Too Many Requests/i, 'Demasiadas solicitudes al sitio: espera unos minutos.'],
+  [/Unable to download webpage|getaddrinfo|Temporary failure|timed out|Network is unreachable|Connection (?:refused|reset)/i, 'No se pudo conectar con el sitio. Revisa tu conexión.'],
+  [/ffmpeg|ffprobe|Postprocessing/i, 'Falló la conversión del archivo (ffmpeg).'],
+  [/live event|is live|will begin in/i, 'Es una transmisión en vivo y todavía no se puede descargar.']
+];
+function friendlyError(raw) {
+  const msg = String(raw || '').replace(/^ERROR:\s*/, '').replace(/^\[[^\]]+\]\s*/, '').trim();
+  const hit = ERRORS.find(([re]) => re.test(raw));
+  return hit ? hit[1] : (msg ? 'No se pudo completar: ' + msg.slice(0, 160) : 'No se pudo completar la descarga.');
+}
+
 function runJson(args, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(YTDLP)) return reject(new Error('Falta yt-dlp. Ejecuta "npm run setup".'));
@@ -180,7 +201,7 @@ function runJson(args, timeoutMs = 60000) {
       clearTimeout(timer);
       if (code !== 0) {
         const line = err.trim().split('\n').filter(Boolean).pop() || 'No se pudo leer ese enlace.';
-        return reject(new Error(line.replace(/^ERROR:\s*/, '')));
+        return reject(new Error(friendlyError(line)));
       }
       try { resolve(JSON.parse(out)); } catch { reject(new Error('Respuesta inesperada de yt-dlp.')); }
     });
@@ -219,6 +240,7 @@ app.get('/api/info', async (req, res) => {
       site: d.extractor_key || '',
       heights,
       sizes,
+      hasVideo: heights.length > 0 || formats.some(f => f.vcodec !== 'none' && VIDEO_EXT.includes(f.ext)), // enlaces directos sin altura declarada
       isLive: !!d.is_live
     });
   } catch (e) { res.status(422).json({ error: e.message }); }
@@ -269,7 +291,7 @@ function buildArgs(job) {
     '--no-playlist', '--no-warnings', '--color', 'never', '--newline', '--progress',
     '--progress-template', 'download:TNP|%(info.format_id)s|%(progress._percent_str)s|%(progress._speed_str)s|%(progress._eta_str)s',
     '--progress-template', 'postprocess:TNPP|%(progress.status)s',
-    '--ffmpeg-location', BIN, '-P', job.dir, '-o', `%(title).110B [%(id)s] (${job.kind === 'audio' ? job.quality + 'k' : job.quality === 'best' ? 'max' : job.quality + 'p'}).%(ext)s`,
+    '--ffmpeg-location', BIN, '-P', job.dir, '-o', `%(title).110B [%(id)s] (${job.kind === 'audio' ? (job.format === 'wav' ? 'wav' : job.quality + 'k') : job.quality === 'best' ? 'max' : job.quality + 'p'}).%(ext)s`,
     '--windows-filenames', '--no-mtime', '--embed-metadata', '--print', 'after_move:filepath'
   ];
   if (job.kind === 'audio') {
@@ -277,12 +299,14 @@ function buildArgs(job) {
     if (job.format === 'mp3' || job.format === 'm4a' || job.format === 'opus') args.push('--audio-quality', job.quality + 'K');
     return [...base, ...args, '--', job.url];
   }
-  const h = job.quality === 'best' ? '' : '[height<=' + job.quality + ']';
+  const h = job.quality === 'best' ? '' : '[height<=?' + job.quality + ']'; // "<=?" tolera sitios que no declaran la altura
   let f;
   if (job.format === 'mp4') f = `bv*${h}[vcodec^=avc1]+ba[acodec^=mp4a]/bv*${h}+ba/b${h}`;
   else if (job.format === 'webm') f = `bv*${h}[ext=webm]+ba[ext=webm]/bv*${h}+ba/b${h}`;
   else f = `bv*${h}+ba/b${h}`;
-  return [...base, '-f', f, '--merge-output-format', job.format, '--', job.url];
+  // --remux-video también cubre los archivos que ya vienen en un solo flujo (no pasan por la mezcla de video y audio)
+  const remux = job.format === 'mp4' || job.format === 'mkv' ? ['--remux-video', job.format] : [];
+  return [...base, '-f', f, '--merge-output-format', job.format, ...remux, '--', job.url];
 }
 
 function pump() {
@@ -331,7 +355,7 @@ function runJob(job) {
       else {
         job.status = 'error';
         const last = errTail.trim().split('\n').filter(Boolean).pop() || 'La descarga falló.';
-        job.error = last.replace(/^ERROR:\s*/, '');
+        job.error = friendlyError(last);
       }
       resolve();
     });
@@ -368,6 +392,16 @@ const publicJob = j => ({ id: j.id, title: j.title, thumbnail: j.thumbnail, kind
 app.get('/api/jobs', (req, res) => {
   const me = ownerOf(req);
   res.json([...jobs.values()].filter(j => j.owner === me).sort((a, b) => b.created - a.created).map(publicJob));
+});
+
+app.post('/api/jobs/:id/retry', (req, res) => {
+  const j = jobs.get(req.params.id);
+  if (!j || j.owner !== ownerOf(req)) return res.status(404).json({ error: 'No existe esa descarga.' });
+  if (j.status !== 'error') return res.status(409).json({ error: 'Solo se pueden reintentar las descargas con error.' });
+  Object.assign(j, { status: 'queued', percent: 0, speed: '', eta: '', file: null, error: null, fid: null, stream: 0, streamMax: 0, created: Date.now() });
+  queue.push(j);
+  pump();
+  res.json(publicJob(j));
 });
 
 app.delete('/api/jobs/:id', (req, res) => {

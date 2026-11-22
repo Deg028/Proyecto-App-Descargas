@@ -169,7 +169,7 @@ async function analyze(url, from) {
   try {
     const info = await api('/api/info?url=' + encodeURIComponent(url));
     state.info = info; saveRecent(info);
-    state.kind = info.heights.length ? state.kind : 'audio';
+    state.kind = info.heights.length || info.hasVideo ? state.kind : 'audio';
     pickDefaults(); renderOptions(); pauseBrowserMedia(); show('options');
   } catch (e) {
     if (quiet) toast(e.message); else { show('home'); homeError(e.message); }
@@ -181,8 +181,9 @@ const VIDEO_FMTS = ['mp4', 'webm', 'mkv'], AUDIO_FMTS = ['mp3', 'm4a', 'opus', '
 function pickDefaults() {
   const hs = state.info.heights;
   if (hs.length) state.vq = hs.filter(h => h <= 720).pop() || hs[0];
+  else state.vq = 'best'; // enlace directo sin alturas: se descarga el archivo tal cual
 }
-const hLabel = h => (h === 2160 ? '4K' : h === 4320 ? '8K' : h + 'p');
+const hLabel = h => (h === 'best' ? 'Original' : h === 2160 ? '4K' : h === 4320 ? '8K' : h + 'p');
 function renderOptions() {
   const i = state.info, video = state.kind === 'video';
   $('#optThumb').src = i.thumbnail || ''; $('#optThumb').hidden = !i.thumbnail;
@@ -190,13 +191,15 @@ function renderOptions() {
   $('#optTitle').textContent = i.title; $('#optChannel').textContent = [i.channel, i.site].filter(Boolean).join(' · ');
   $('#tabVideo').classList.toggle('on', video); $('#tabAudio').classList.toggle('on', !video);
   $('#tabVideo').setAttribute('aria-selected', video); $('#tabAudio').setAttribute('aria-selected', !video);
-  $('#tabVideo').disabled = !i.heights.length;
+  $('#tabVideo').disabled = !(i.heights.length || i.hasVideo);
 
   const fmts = video ? VIDEO_FMTS : AUDIO_FMTS, cur = video ? state.vf : state.af;
   $('#fmtChips').innerHTML = fmts.map(f => `<button class="chip-btn ${f === cur ? 'on' : ''}" data-fmt="${f}" aria-pressed="${f === cur}">${f.toUpperCase()}</button>`).join('');
 
   const qs = $('#qualityTiles'); $('#qualityLabel').textContent = video ? 'Calidad' : 'Calidad del audio';
-  if (video) {
+  if (video && !i.heights.length) {
+    qs.innerHTML = '<button class="tile on" disabled style="grid-column:1/-1">Original<small>Se descarga con la calidad del archivo</small></button>';
+  } else if (video) {
     const shown = i.heights.slice(-6);
     qs.innerHTML = shown.map(h => `<button class="tile ${h === state.vq ? 'on' : ''}" data-q="${h}" aria-pressed="${h === state.vq}">${hLabel(h)}<small>${i.sizes[h] ? '≈ ' + fmtSize(i.sizes[h]) : '&nbsp;'}</small></button>`).join('');
   } else if (state.af === 'wav') {
@@ -255,6 +258,7 @@ function renderJobs() {
       <div class="actions">
         ${active ? `<button class="btn outline" data-act="cancel">Cancelar</button>` : ''}
         ${j.status === 'done' && j.file ? `<a class="btn primary" href="/files/${encodeURIComponent(j.file)}?dl=1" download>${ic('download')}Guardar</a><button class="btn secondary" data-act="play" data-file="${esc(j.file)}">${ic('play')}Reproducir</button>` : ''}
+        ${j.status === 'error' ? `<button class="btn primary" data-act="retry">Reintentar</button>` : ''}
         ${!active ? `<button class="btn secondary" data-act="remove">Quitar</button>` : ''}
       </div></div>`;
   }).join('');
@@ -513,6 +517,10 @@ document.addEventListener('click', async ev => {
   if (act === 'delete') {
     if (!confirm('¿Eliminar este archivo del disco?')) return;
     try { await api('/api/files/' + encodeURIComponent(t.dataset.file), { method: 'DELETE' }); toast('Archivo eliminado'); loadFiles(); } catch (e) { toast(e.message); }
+    return;
+  }
+  if (act === 'retry') {
+    try { await api('/api/jobs/' + t.closest('[data-job]').dataset.job + '/retry', { method: 'POST' }); toast('Reintentando descarga'); loadJobs(); } catch (e) { toast(e.message); }
     return;
   }
   if (act === 'cancel' || act === 'remove') {
