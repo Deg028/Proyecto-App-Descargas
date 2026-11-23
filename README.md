@@ -76,16 +76,23 @@ Cuidado de interfaz y accesibilidad incluidos: objetos táctiles de 48 px en pan
 
 `npm run qr` arranca Tonea en la red local, muestra un QR en el terminal y abre una página con los códigos. El QR ya incluye la clave de acceso. Escanéalo con la cámara del teléfono (misma Wi-Fi) y se abre Tonea en el navegador del móvil.
 
-## Probar en el teléfono con Expo Go
+## App del teléfono (Expo Go)
 
-La carpeta `movil/` es un proyecto Expo que muestra Tonea en un WebView apuntando al servidor de tu PC (con el reproductor, las descargas y los temas).
+La carpeta `movil/` es una app Expo nativa (sin WebView) para **buscar y descargar música y video con licencia libre**. Funciona sola, sin el PC.
+
+- **Buscar:** Internet Archive (audio y video) y Jamendo (música). Solo salen resultados con licencia Creative Commons o dominio público reconocida; en Jamendo, solo pistas que el artista permite descargar. Cada resultado muestra licencia y condiciones (crédito, uso comercial, derivadas).
+- **Biblioteca:** los archivos se guardan en el teléfono junto a un `.txt` con el crédito y la licencia. Reproductor de audio y video integrado.
+- **Ajustes:** aquí pegas tu clave de Jamendo (se guarda solo en el teléfono) y puedes abrir *Tonea del PC* (el modo anterior: la interfaz completa del servidor del PC en un WebView).
+
+Cómo probarla:
 
 1. Instala **Expo Go** en el teléfono (Play Store / App Store).
-2. Terminal 1, en la raíz: `$env:HOST="0.0.0.0"; npm start`  (si Windows pregunta por el firewall, permite redes privadas).
-3. Terminal 2: `cd movil; npm install; npx expo start` y escanea el QR con Expo Go (Android) o con la cámara (iPhone).
-4. En la primera pantalla pega el enlace del PC con la clave (ej. `192.168.1.182:3000/?t=CLAVE`; la clave la muestra `npm run qr` o la consola). Queda guardada. Para cambiarla, mantén pulsada la esquina superior izquierda (sobre el logo) casi 1 segundo.
+2. `cd movil; npm install; npx expo start` y escanea el QR con Expo Go (Android) o con la cámara (iPhone).
+3. En *Ajustes* añade la clave de Jamendo (crea una cuenta gratuita en <https://devportal.jamendo.com/> y una aplicación de uso no comercial; copia su `client_id`). Internet Archive no necesita clave.
 
-Teléfono y PC deben estar en la misma Wi-Fi. Cambios en `public/` se ven al recargar la app (agita el teléfono → *Reload*); cambios en `movil/App.js` recargan solos. Limitación: los archivos descargados quedan en el PC; guardarlos en el teléfono requeriría añadir `expo-file-system` (siguiente paso).
+El modo *Tonea del PC* requiere `$env:HOST="0.0.0.0"; npm start` en el PC (misma Wi-Fi) y pegar el enlace con la clave que muestra `npm run qr`.
+
+El código de las fuentes está en `shared/providers/` y lo comparten la app móvil y el PC. `npm test` ejecuta sus pruebas (`TONEA_LIVE=1 npm test` añade una consulta real a Internet Archive).
 
 ## Uso desde el móvil
 

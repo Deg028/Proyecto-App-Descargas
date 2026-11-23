@@ -1,75 +1,57 @@
-// Tonea móvil (Expo Go): muestra el servidor de Tonea del PC dentro de un WebView y recuerda su dirección.
-import { useEffect, useRef, useState, useCallback } from 'react';
-import { ActivityIndicator, BackHandler, Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from 'react-native';
+// Tonea móvil (Expo Go): busca y descarga música y video con licencia libre (Jamendo, Internet Archive).
+import { useCallback, useEffect, useState } from 'react';
+import { Pressable, SafeAreaView, StyleSheet, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { WebView } from 'react-native-webview';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Search from './src/screens/Search';
+import Library from './src/screens/Library';
+import Settings from './src/screens/Settings';
+import Player from './src/screens/Player';
+import PcWebView from './src/screens/PcWebView';
+import { deleteEntry } from './src/downloader';
+import { loadLibrary, loadSettings, saveLibrary, saveSettings } from './src/storage';
+import { C } from './src/theme';
 
-const KEY = 'tonea.server', BG = '#191829', ACCENT = '#e08d79', INK = '#f4f1ff', MUTED = '#a9a5c8';
-// Acepta "192.168.1.5", "192.168.1.5:3000" o el enlace completo del QR (con ?t=CLAVE).
-const normalize = v => { let [b, q] = v.trim().split('?'); b = b.replace(/\/+$/, ''); if (!b) return ''; if (!/^https?:\/\//i.test(b)) b = 'http://' + b; if (!/:\d+$/.test(b)) b += ':3000'; return q ? b + '/?' + q : b; };
+const TABS = [['search', 'Buscar'], ['library', 'Biblioteca'], ['settings', 'Ajustes']];
 
 export default function App() {
-  const [server, setServer] = useState(null), [draft, setDraft] = useState(''), [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false), [canBack, setCanBack] = useState(false);
-  const web = useRef(null);
+  const [tab, setTab] = useState('search'), [settings, setSettings] = useState({ jamendoKey: '' });
+  const [library, setLibrary] = useState([]), [playing, setPlaying] = useState(null), [pc, setPc] = useState(false), [ready, setReady] = useState(false);
 
-  useEffect(() => { AsyncStorage.getItem(KEY).then(v => { if (v) { setServer(v); setDraft(v); } setLoaded(true); }); }, []);
-  useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => { if (canBack && web.current) { web.current.goBack(); return true; } return false; });
-    return () => sub.remove();
-  }, [canBack]);
+  useEffect(() => { Promise.all([loadSettings(), loadLibrary()]).then(([s, l]) => { setSettings(s); setLibrary(l); setReady(true); }); }, []);
 
-  const connect = useCallback(async () => {
-    const url = normalize(draft); if (!url) return;
-    await AsyncStorage.setItem(KEY, url); setFailed(false); setServer(url);
-  }, [draft]);
-  const change = () => { setServer(null); setFailed(false); };
+  const onDownloaded = useCallback(entry => setLibrary(prev => {
+    const next = [entry, ...prev.filter(e => e.id !== entry.id)];
+    saveLibrary(next); return next;
+  }), []);
+  const onDelete = useCallback(entry => { deleteEntry(entry); setLibrary(prev => { const next = prev.filter(e => e.id !== entry.id); saveLibrary(next); return next; }); }, []);
+  const onSave = useCallback(async s => { await saveSettings(s); setSettings(s); }, []);
 
-  if (!loaded) return <View style={s.fill} />;
-
-  if (!server || failed) {
-    return (
-      <SafeAreaView style={s.fill}>
-        <StatusBar style="light" />
-        <View style={s.box}>
-          <Text style={s.logo} accessibilityRole="header">Tonea</Text>
-          <Text style={s.p}>{failed ? 'No se pudo conectar con el servidor.' : 'Conecta con Tonea en tu PC.'}</Text>
-          <Text style={s.small}>1. En el PC ejecuta: $env:HOST="0.0.0.0"; npm start{'\n'}2. Pega aquí el enlace que muestra el PC con npm run qr (incluye la clave ?t=…){'\n'}3. El teléfono y el PC deben estar en la misma Wi-Fi.</Text>
-          <Text style={s.label} nativeID="lbl">Dirección del servidor</Text>
-          <TextInput accessibilityLabelledBy="lbl" style={s.input} value={draft} onChangeText={setDraft} placeholder="192.168.1.182:3000/?t=clave" placeholderTextColor={MUTED}
-            autoCapitalize="none" autoCorrect={false} keyboardType="url" returnKeyType="go" onSubmitEditing={connect} />
-          <Pressable accessibilityRole="button" onPress={connect} style={({ pressed }) => [s.btn, pressed && { opacity: 0.8 }]}>
-            <Text style={s.btnT}>Conectar</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
+  if (pc) return <PcWebView onBack={() => setPc(false)} />;
+  if (!ready) return <View style={s.fill} />;
 
   return (
     <SafeAreaView style={s.fill}>
       <StatusBar style="light" />
-      <WebView
-        ref={web} source={{ uri: server }} style={s.fill} containerStyle={{ backgroundColor: BG }}
-        javaScriptEnabled domStorageEnabled allowsInlineMediaPlayback mediaPlaybackRequiresUserAction={false} allowsFullscreenVideo
-        setSupportMultipleWindows={false} originWhitelist={['http://*', 'https://*']}
-        onNavigationStateChange={n => setCanBack(n.canGoBack)}
-        onError={() => setFailed(true)} onHttpError={e => { if (e.nativeEvent.statusCode >= 500) setFailed(true); }}
-        startInLoadingState renderLoading={() => <View style={[s.fill, s.center]}><ActivityIndicator color={ACCENT} size="large" /></View>}
-      />
-      <Pressable accessibilityRole="button" accessibilityLabel="Cambiar servidor" onLongPress={change} delayLongPress={900} style={s.hidden} />
+      <View style={s.fill}>
+        {tab === 'search' && <Search settings={settings} onDownloaded={onDownloaded} onOpenSettings={() => setTab('settings')} />}
+        {tab === 'library' && <Library library={library} onPlay={setPlaying} onDelete={onDelete} />}
+        {tab === 'settings' && <Settings settings={settings} onSave={onSave} onOpenPc={() => setPc(true)} />}
+      </View>
+      <View style={s.tabs} accessibilityRole="tablist">
+        {TABS.map(([id, label]) => (
+          <Pressable key={id} onPress={() => setTab(id)} style={[s.tab, tab === id && s.tabOn]} accessibilityRole="tab" accessibilityState={{ selected: tab === id }}>
+            <Text style={[s.tabT, tab === id && s.tabTOn]}>{label}{id === 'library' && library.length ? ' (' + library.length + ')' : ''}</Text>
+          </Pressable>
+        ))}
+      </View>
+      <Player entry={playing} onClose={() => setPlaying(null)} />
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: BG }, center: { alignItems: 'center', justifyContent: 'center' },
-  box: { flex: 1, padding: 24, justifyContent: 'center', gap: 14 },
-  logo: { color: INK, fontSize: 36, fontWeight: '700' }, p: { color: INK, fontSize: 18, fontWeight: '600' },
-  small: { color: MUTED, fontSize: 15, lineHeight: 22 }, label: { color: INK, fontSize: 15, fontWeight: '600', marginTop: 6 },
-  input: { minHeight: 52, borderRadius: 26, borderWidth: 1.5, borderColor: ACCENT, paddingHorizontal: 20, color: INK, fontSize: 17 },
-  btn: { minHeight: 52, borderRadius: 26, backgroundColor: ACCENT, alignItems: 'center', justifyContent: 'center' }, btnT: { color: '#2a1612', fontSize: 17, fontWeight: '700' },
-  hidden: { position: "absolute", top: 0, left: 0, width: 110, height: 40 }
+  fill: { flex: 1, backgroundColor: C.bg },
+  tabs: { flexDirection: 'row', gap: 8, padding: 10, backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24 },
+  tab: { flex: 1, minHeight: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' }, tabOn: { backgroundColor: C.accent },
+  tabT: { color: C.muted, fontWeight: '700', fontSize: 14 }, tabTOn: { color: C.accentInk }
 });
