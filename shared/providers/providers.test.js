@@ -66,6 +66,19 @@ test('jamendo.search exige clave y solo ofrece descarga si el artista la permite
   assert.equal((await resolve(items[0]))[0].url, 'https://d/1');
 });
 
+test('jamendo.search reintenta cuando la API responde vacío de forma intermitente', async () => {
+  const full = { headers: { status: 'success' }, results: [{ id: 9, name: 'Pista', artist_name: 'Ana', audiodownload: 'https://d/9', audiodownload_allowed: true, license_ccurl: 'https://creativecommons.org/licenses/by/3.0/' }] };
+  let calls = 0;
+  const flaky = async () => ({ ok: true, status: 200, json: async () => (++calls < 3 ? { headers: { status: 'success' }, results: [] } : full) });
+  const items = await search('jamendo', 'piano', { clientId: 'k', fetchImpl: flaky, retryDelayMs: 0 });
+  assert.equal(items.length, 1); assert.equal(calls, 3);
+
+  let empties = 0;
+  const alwaysEmpty = async () => { empties++; return { ok: true, status: 200, json: async () => ({ headers: { status: 'success' }, results: [] }) }; };
+  assert.deepEqual(await search('jamendo', 'zzzz', { clientId: 'k', fetchImpl: alwaysEmpty, retryDelayMs: 0 }), []);
+  assert.equal(empties, 3);
+});
+
 test('fuente desconocida falla con un mensaje claro', () => assert.throws(() => search('youtube', 'x'), /desconocida/));
 
 test('EN VIVO: Internet Archive devuelve audio con licencia y se puede resolver', { skip: !process.env.TONEA_LIVE }, async () => {
