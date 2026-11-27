@@ -2,11 +2,9 @@
 process.env.HOST = '0.0.0.0';
 const os = require('os'), fs = require('fs'), path = require('path'), { exec } = require('child_process');
 const QR = require('qrcode');
-const { start, PORT, TOKEN } = require('./server');
+const { start, PORT, TOKEN, lanAddresses } = require('./server');
 
-// Prefiere la interfaz Wi-Fi/Ethernet real y deja al final los adaptadores virtuales (VirtualBox, WSL, Docker…).
-const ips = Object.entries(os.networkInterfaces()).flatMap(([name, list]) => list.filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, ip: a.address })))
-  .sort((a, b) => (/wi-?fi|wlan|ethernet|local/i.test(b.name) ? 1 : 0) - (/wi-?fi|wlan|ethernet|local/i.test(a.name) ? 1 : 0) || (/\.1$/.test(a.ip) ? 1 : 0) - (/\.1$/.test(b.ip) ? 1 : 0));
+const ips = lanAddresses();
 
 start().catch(e => { if (e.code !== 'EADDRINUSE') throw e; }).then(async () => {
   if (!ips.length) return console.log('No encontré una red local. Conéctate a una Wi-Fi.');

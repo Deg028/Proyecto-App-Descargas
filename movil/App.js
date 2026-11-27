@@ -26,7 +26,7 @@ export default function App() {
   const onDelete = useCallback(entry => { deleteEntry(entry); setLibrary(prev => { const next = prev.filter(e => e.id !== entry.id); saveLibrary(next); return next; }); }, []);
   const onSave = useCallback(async s => { await saveSettings(s); setSettings(s); }, []);
 
-  if (pc) return <PcWebView onBack={() => setPc(false)} />;
+  if (pc) return <PcWebView onBack={() => setPc(false)} onDownloaded={onDownloaded} />;
   if (!ready) return <View style={s.fill} />;
 
   return (

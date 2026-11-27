@@ -22,7 +22,7 @@ export default function Settings({ settings, onSave, onOpenPc }) {
       <Text style={s.note}>La clave se guarda solo en este teléfono.</Text>
 
       <Text style={[s.h2, { marginTop: 28 }]} accessibilityRole="header">Tonea del PC</Text>
-      <Text style={s.p}>Si tienes Tonea abierto en tu PC (misma Wi-Fi), puedes usar su interfaz completa desde aquí.</Text>
+      <Text style={s.p}>Usa Tonea de tu PC (misma Wi-Fi) para descargar de YouTube y otros sitios con yt-dlp. Lo que guardes se copia del PC a la Biblioteca de este teléfono. Uso personal.</Text>
       <Pressable style={s.ghost} onPress={onOpenPc} accessibilityRole="button"><Text style={s.ghostT}>Conectar con Tonea del PC</Text></Pressable>
 
       <Text style={[s.h2, { marginTop: 28 }]} accessibilityRole="header">Sobre el contenido</Text>

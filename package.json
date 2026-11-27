@@ -12,6 +12,7 @@
     "contrast": "node scripts/contrast.js",
     "test": "node --test shared/providers/providers.test.js",
     "app:debug": "electron . --debug",
+    "app:lan": "electron . --lan",
     "app:movil": "electron . --size=390x844 --debug",
     "update-ytdlp": "node setup.js --update"
   },

@@ -104,7 +104,7 @@ const SHEETS = { theme: ['#sheetTheme', '#btnCloseTheme', '#btnTheme'], account:
 function openSheet(which, open) {
   for (const k of Object.keys(SHEETS)) $(SHEETS[k][0]).hidden = !(open && k === which);
   $('#overlay').hidden = !open;
-  if (open) { if (which === 'theme') renderThemeSheet(); else renderAccount(); $(SHEETS[which][1]).focus(); }
+  if (open) { if (which === 'theme') renderThemeSheet(); else { renderAccount(); loadPhone(); } $(SHEETS[which][1]).focus(); }
   else $(SHEETS[which || 'theme'][2]).focus();
 }
 const closeSheets = () => { if (!$('#sheetTheme').hidden) openSheet('theme', false); else if (!$('#sheetAccount').hidden) openSheet('account', false); };
@@ -477,6 +477,24 @@ function renderAccount() {
   }
   paintIcons(el);
 }
+// Enlace y QR para usar Tonea desde el teléfono (solo los da el servidor a este mismo PC: llevan la clave de acceso).
+async function loadPhone() {
+  const el = $('#phoneBody');
+  let r;
+  try { r = await api('/api/lan'); } catch { el.innerHTML = ''; return; }
+  const head = '<h3>Usar desde el teléfono</h3>';
+  if (!r.exposed) {
+    el.innerHTML = head + '<p class="muted small">Para que tu teléfono descargue a través de este PC (misma Wi-Fi), abre Tonea con <code>Iniciar Tonea.cmd lan</code> o <code>npm run app:lan</code>.</p>';
+    return;
+  }
+  el.innerHTML = head + '<p class="muted small">En la app Tonea del teléfono ve a <b>Ajustes → Conectar con Tonea del PC</b> y escanea el código. Si hay varios, el primero suele ser tu Wi-Fi.</p>' +
+    r.links.map(l => `<figure class="qr"><div>${l.svg}</div><figcaption><code>${esc(l.url)}</code><span class="muted">${esc(l.name)}</span><button class="btn outline" data-copy="${esc(l.url)}">Copiar enlace</button></figcaption></figure>`).join('');
+}
+$('#phoneBody').addEventListener('click', async e => {
+  const b = e.target.closest('[data-copy]'); if (!b) return;
+  try { await navigator.clipboard.writeText(b.dataset.copy); toast('Enlace copiado'); } catch { toast('No se pudo copiar'); }
+});
+
 async function loadAccount() {
   try { const s = await api('/api/auth/status'); account.user = s.user; account.configured = s.configured; account.redirectUri = s.redirectUri; } catch { /* sin servidor */ }
   paintAccountButton();

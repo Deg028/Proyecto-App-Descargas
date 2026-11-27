@@ -207,6 +207,13 @@ button.item:hover { border-color: var(--accent); }
 .acct-card .t { font-weight: 600; } .acct-card .m { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
 .gbtn { height: 52px; border-radius: 999px; background: #fff; color: #1f1f1f; border: 1px solid #dadce0; display: flex; align-items: center; justify-content: center; gap: 12px; font-weight: 500; }
 .gbtn:disabled { opacity: .5; cursor: not-allowed; }
+.phone { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px; }
+.phone h3 { font-size: 15px; font-weight: 700; }
+.qr { margin: 0; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.qr > div { background: #fff; padding: 6px; border-radius: 12px; line-height: 0; }
+.qr svg { width: 150px; height: 150px; }
+.qr figcaption { flex: 1; min-width: 180px; font-size: 12px; display: flex; flex-direction: column; gap: 8px; }
+.qr code { overflow-wrap: anywhere; }
 .warn { padding: 12px 14px; border-radius: 16px; border: 1px dashed var(--border); font-size: 12px; line-height: 1.6; color: var(--muted); }
 .warn code { background: var(--surface2); padding: 1px 6px; border-radius: 6px; color: var(--ink); overflow-wrap: anywhere; }
 

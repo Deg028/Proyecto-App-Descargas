@@ -3,7 +3,8 @@ const { app, BrowserWindow, shell, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
-process.env.HOST = '127.0.0.1';
+// Con --lan (Iniciar Tonea.cmd lan / npm run app:lan) el teléfono puede usar Tonea en la misma Wi-Fi, con clave de acceso.
+process.env.HOST = process.argv.includes('--lan') ? '0.0.0.0' : '127.0.0.1';
 // Una carga interrumpida por otra (ERR_ABORTED, -3) es normal al navegar rápido: no debe tumbar la app.
 process.on('unhandledRejection', e => console.warn('aviso:', e && e.message ? e.message : e));
 const arg = n => { const a = process.argv.find(x => x.startsWith('--' + n + '=')); return a ? a.split('=').slice(1).join('=') : ''; };

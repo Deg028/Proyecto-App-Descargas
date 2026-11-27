@@ -32,6 +32,22 @@ export async function downloadFile(item, file) {
   };
 }
 
+// Copia al teléfono un archivo descargado por Tonea del PC (url = /files/NOMBRE?dl=1&t=CLAVE). Uso personal: no hay licencia que mostrar.
+const AUDIO_EXT = ['mp3', 'm4a', 'opus', 'wav', 'ogg', 'aac', 'flac'];
+export async function downloadFromPc(url, fileName) {
+  const dir = libraryDir();
+  const ext = (fileName.split('.').pop() || 'mp4').toLowerCase();
+  const name = safe(fileName.replace(/\.[^.]+$/, '')) + '.' + ext;
+  const dest = new File(dir, name);
+  await File.downloadFileAsync(url, dest, { idempotent: true });
+  return {
+    id: 'pc:' + name, name, uri: dest.uri, size: dest.size || 0,
+    title: fileName.replace(/\.[^.]+$/, '').replace(/\s\[[\w-]{6,}\]/, ''), artist: '', kind: AUDIO_EXT.includes(ext) ? 'audio' : 'video', source: 'pc',
+    license: 'Descargado con Tonea del PC', licenseUrl: '', attribution: false, commercial: true,
+    credit: 'Archivo descargado con Tonea en tu PC, para uso personal.', pageUrl: '', thumbnail: '', duration: 0, added: Date.now()
+  };
+}
+
 export function deleteEntry(entry) {
   for (const uri of [entry.uri, entry.uri + '.txt']) { try { const f = new File(uri); if (f.exists) f.delete(); } catch { /* ya no existe */ } }
 }

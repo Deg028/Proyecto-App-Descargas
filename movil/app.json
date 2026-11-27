@@ -24,7 +24,8 @@
     "plugins": [
       "expo-status-bar",
       "expo-audio",
-      "expo-video"
+      "expo-video",
+      ["expo-camera", { "cameraPermission": "Tonea usa la cámara para leer el código QR de Tonea en tu PC." }]
     ]
   }
 }

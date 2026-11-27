@@ -98,13 +98,22 @@ Cómo probarla:
 2. `cd movil; npm install; npx expo start` y escanea el QR con Expo Go (Android) o con la cámara (iPhone).
 3. En *Ajustes* añade la clave de Jamendo (crea una cuenta gratuita en <https://devportal.jamendo.com/> y una aplicación de uso no comercial; copia su `client_id`). Internet Archive no necesita clave.
 
-El modo *Tonea del PC* requiere `$env:HOST="0.0.0.0"; npm start` en el PC (misma Wi-Fi) y pegar el enlace con la clave que muestra `npm run qr`.
+### Descargar de YouTube desde el teléfono (Tonea del PC)
+
+Expo Go no puede ejecutar yt-dlp, así que el teléfono usa tu PC como motor de descarga (misma Wi-Fi, uso personal):
+
+1. En el PC abre Tonea con `Iniciar Tonea.cmd lan` (o `npm run app:lan`). La primera vez Windows puede preguntar por el firewall: permite **redes privadas**.
+2. En el PC, pulsa el icono de cuenta (arriba a la derecha) → **Usar desde el teléfono**: verás un código QR con la clave de acceso incluida.
+3. En el teléfono: *Ajustes → Conectar con Tonea del PC → Escanear código QR*.
+4. Descarga como en el PC. Al pulsar **Guardar** en una descarga terminada, el archivo se copia a la Biblioteca del teléfono.
+
+También funciona con `npm run qr` o `$env:HOST="0.0.0.0"; npm start` (la clave sale en la consola).
 
 El código de las fuentes está en `shared/providers/` y lo comparten la app móvil y el PC. `npm test` ejecuta sus pruebas (`TONEA_LIVE=1 npm test` añade una consulta real a Internet Archive).
 
 ## Uso desde el móvil
 
-`$env:HOST="0.0.0.0"; npm start` y abre `http://IP-DEL-PC:3000/?t=CLAVE` en la misma red Wi-Fi.
+`Iniciar Tonea.cmd lan` (o `$env:HOST="0.0.0.0"; npm start`) y abre `http://IP-DEL-PC:3000/?t=CLAVE` en la misma red Wi-Fi. La app de escritorio muestra ese enlace con su QR en *Cuenta → Usar desde el teléfono*.
 
 **Clave de acceso:** cuando `HOST` no es localhost, todo lo que llegue desde otro dispositivo exige una clave (`TONEA_TOKEN` en `.env`, o una generada y guardada en `data/token.txt`). La primera visita con `?t=CLAVE` guarda una cookie y ya no hace falta repetirla. Desde el propio PC no se pide. Si pones Tonea detrás de un proxy inverso o túnel, las peticiones llegan como locales y se saltan la clave: protégelo en el proxy. Sigue siendo HTTP sin cifrar: úsalo solo en redes de confianza. El navegador integrado no está disponible en el móvil.
 

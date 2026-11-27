@@ -3,6 +3,8 @@ const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
+const QR = require('qrcode');
 
 const ROOT = __dirname;
 const BIN = path.join(ROOT, 'bin');
@@ -85,10 +87,29 @@ app.use((req, res, next) => {
   if (sameToken(readCookie(req, 'tonea_key'))) return next();
   if (sameToken(req.query.t)) {
     res.setHeader('Set-Cookie', `tonea_key=${encodeURIComponent(TOKEN)}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000`);
-    return req.method === 'GET' && !req.path.startsWith('/api/') ? res.redirect(req.path) : next();
+    return req.method === 'GET' && !/^\/(api|files)\//.test(req.path) ? res.redirect(req.path) : next();
   }
   if (req.path.startsWith('/api/') || req.path.startsWith('/files/')) return res.status(401).json({ error: 'Falta la clave de acceso de Tonea.' });
   res.status(401).send(msgPage('Acceso protegido', 'Abre Tonea con el enlace o el código QR que muestra el PC (npm run qr), o añade ?t=TU_CLAVE a la dirección.'));
+});
+
+// ---------- enlace para el teléfono ----------
+// Direcciones de este PC en la red local. Primero la Wi-Fi/Ethernet real; al final los adaptadores virtuales (WSL, Docker…).
+function lanAddresses() {
+  const score = n => (/vethernet|virtual|wsl|docker|vmware|hyper-v|bluetooth|loopback/i.test(n) ? -1 : /wi-?fi|wlan|ethernet/i.test(n) ? 1 : 0);
+  return Object.entries(os.networkInterfaces())
+    .flatMap(([name, list]) => (list || []).filter(a => a.family === 'IPv4' && !a.internal).map(a => ({ name, ip: a.address })))
+    .sort((a, b) => score(b.name) - score(a.name));
+}
+// Solo responde en el propio PC: los enlaces llevan la clave de acceso.
+app.get('/api/lan', async (req, res) => {
+  if (!isLocal(req)) return res.status(403).json({ error: 'Solo disponible en el PC.' });
+  if (!EXPOSED) return res.json({ exposed: false, links: [] });
+  const links = await Promise.all(lanAddresses().map(async a => {
+    const url = `http://${a.ip}:${PORT}/?t=${TOKEN}`;
+    return { name: a.name, url, svg: await QR.toString(url, { type: 'svg', margin: 1, width: 200 }) };
+  }));
+  res.json({ exposed: true, links });
 });
 
 app.get('/api/auth/status', (req, res) => res.json({ configured: !!G.id, redirectUri: REDIRECT, user: getUser(req) }));
@@ -565,5 +586,5 @@ function start() {
     srv.on('error', reject);
   });
 }
-module.exports = { start, PORT, TOKEN };
+module.exports = { start, PORT, TOKEN, lanAddresses };
 if (require.main === module) start();
