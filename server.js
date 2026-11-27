@@ -1,5 +1,5 @@
 const express = require('express');
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -26,7 +26,7 @@ const MAX_PARALLEL = 2;
 fs.mkdirSync(DL, { recursive: true });
 
 const app = express();
-app.use(express.json({ limit: '50kb' }));
+app.use(express.json({ limit: '300kb' })); // las listas envían hasta 200 elementos
 
 // ---------- cuentas (inicio de sesión con Google) ----------
 const PUBLIC_URL = (process.env.PUBLIC_URL || 'http://localhost:' + PORT).replace(/\/$/, '');
@@ -188,10 +188,84 @@ function friendlyError(raw) {
   return hit ? hit[1] : (msg ? 'No se pudo completar: ' + msg.slice(0, 160) : 'No se pudo completar la descarga.');
 }
 
+// ---------- yt-dlp: intérprete de JavaScript, cookies y actualización ----------
+// YouTube exige un intérprete de JavaScript para descifrar sus enlaces (sin él faltan formatos). Se usa Node.js.
+function findJsRuntime() {
+  if (process.env.JS_RUNTIME) return { path: process.env.JS_RUNTIME, env: {} };
+  if (!process.versions.electron) return { path: process.execPath, env: {} };
+  // En Electron, process.execPath es electron.exe: se busca el Node del sistema y, si no hay, Electron hace de Node.
+  const r = spawnSync(process.platform === 'win32' ? 'where' : 'which', ['node'], { encoding: 'utf8', windowsHide: true });
+  const found = (r.stdout || '').split(/\r?\n/).map(l => l.trim()).find(Boolean);
+  return found ? { path: found, env: {} } : { path: process.execPath, env: { ELECTRON_RUN_AS_NODE: '1' } };
+}
+const JS = findJsRuntime();
+
+// Cookies (opcionales, para sitios que exigen sesión como Instagram): data/cookies.txt o COOKIES_FROM_BROWSER=firefox|edge|chrome.
+const COOKIES_FILE = path.join(DATA, 'cookies.txt');
+function cookieArgs() {
+  if (fs.existsSync(COOKIES_FILE)) return ['--cookies', COOKIES_FILE];
+  if (process.env.COOKIES_FROM_BROWSER) return ['--cookies-from-browser', process.env.COOKIES_FROM_BROWSER];
+  return [];
+}
+const cookieSource = () => (fs.existsSync(COOKIES_FILE) ? 'archivo' : process.env.COOKIES_FROM_BROWSER ? 'navegador: ' + process.env.COOKIES_FROM_BROWSER : '');
+const spawnYtdlp = args => spawn(YTDLP, ['--js-runtimes', 'node:' + JS.path, ...cookieArgs(), ...args], { windowsHide: true, env: { ...process.env, ...JS.env } });
+
+function ytdlpVersion() {
+  if (!fs.existsSync(YTDLP)) return '';
+  const r = spawnSync(YTDLP, ['--version'], { encoding: 'utf8', windowsHide: true, timeout: 20000 });
+  return (r.stdout || '').trim();
+}
+let YTDLP_VERSION = ytdlpVersion();
+
+// Los sitios cambian a menudo y yt-dlp se queda viejo: se actualiza solo (una vez al día al arrancar, y cuando una descarga
+// falla con un error típico de versión antigua). Una sola actualización a la vez.
+const UPDATE_STAMP = path.join(DATA, 'ytdlp-update.json');
+let updating = null;
+function updateYtdlp() {
+  if (updating) return updating;
+  updating = new Promise(resolve => {
+    if (!fs.existsSync(YTDLP)) return resolve({ ok: false, changed: false, version: '', message: 'Falta yt-dlp. Ejecuta "npm run setup".' });
+    const before = YTDLP_VERSION;
+    const p = spawn(YTDLP, ['-U'], { windowsHide: true });
+    let out = '';
+    p.stdout.on('data', d => (out += d)); p.stderr.on('data', d => (out += d));
+    p.on('error', e => resolve({ ok: false, changed: false, version: before, message: e.message }));
+    p.on('close', code => {
+      YTDLP_VERSION = ytdlpVersion() || before;
+      try { fs.mkdirSync(DATA, { recursive: true }); fs.writeFileSync(UPDATE_STAMP, JSON.stringify({ checked: Date.now() })); } catch { /* sin disco */ }
+      const changed = !!YTDLP_VERSION && YTDLP_VERSION !== before;
+      resolve({ ok: code === 0, changed, version: YTDLP_VERSION, message: changed ? 'yt-dlp actualizado a ' + YTDLP_VERSION : code === 0 ? 'yt-dlp ya está al día (' + YTDLP_VERSION + ')' : 'No se pudo actualizar: ' + out.trim().split('\n').pop() });
+    });
+  }).finally(() => { updating = null; });
+  return updating;
+}
+function autoUpdateDaily() {
+  if (process.env.TONEA_NO_AUTOUPDATE) return;
+  let last = 0;
+  try { last = JSON.parse(fs.readFileSync(UPDATE_STAMP, 'utf8')).checked || 0; } catch { /* nunca */ }
+  if (Date.now() - last > 24 * 3600 * 1000) updateYtdlp().then(r => console.log(r.message));
+}
+// Errores que suelen arreglarse actualizando yt-dlp (no los de enlace roto, privado o sin conexión).
+const OUTDATED = /Unable to extract|nsig|n challenge|signature|Requested format is not available|HTTP Error 403|please report this issue/i;
+
+// Listas de reproducción: se leen sin abrir cada video (rápido) y como máximo PLAYLIST_MAX elementos.
+const PLAYLIST_MAX = 200;
+const isPlaylistUrl = u => /[?&]list=/.test(u) || /\/playlist\b/.test(u);
+const isPlaylistOnly = u => isPlaylistUrl(u) && !/[?&]v=/.test(u) && !/youtu\.be\/[\w-]+/.test(u);
+function summarizePlaylist(p) {
+  if (!p || !Array.isArray(p.entries)) return null;
+  const entries = p.entries.filter(e => e && e.id).map(e => ({
+    url: e.url && /^https?:/.test(e.url) ? e.url : 'https://www.youtube.com/watch?v=' + e.id,
+    title: e.title || e.id, duration: e.duration || 0,
+    thumbnail: (e.thumbnails && e.thumbnails.length ? e.thumbnails[e.thumbnails.length - 1].url : '') || ''
+  }));
+  return entries.length ? { id: p.id || '', title: p.title || 'Lista', channel: p.uploader || p.channel || '', count: entries.length, entries } : null;
+}
+
 function runJson(args, timeoutMs = 60000) {
   return new Promise((resolve, reject) => {
     if (!fs.existsSync(YTDLP)) return reject(new Error('Falta yt-dlp. Ejecuta "npm run setup".'));
-    const p = spawn(YTDLP, args, { windowsHide: true });
+    const p = spawnYtdlp(args);
     let out = '', err = '';
     const timer = setTimeout(() => { p.kill(); reject(new Error('Tiempo de espera agotado analizando el enlace.')); }, timeoutMs);
     p.stdout.on('data', d => (out += d));
@@ -219,6 +293,18 @@ app.get('/api/info', async (req, res) => {
   const url = parseUrl(req.query.url);
   if (!url) return res.status(400).json({ error: 'Pega un enlace válido (http o https).' });
   try {
+    const plPromise = isPlaylistUrl(url)
+      ? runJson(['-J', '--flat-playlist', '--yes-playlist', '--no-warnings', '--playlist-end', String(PLAYLIST_MAX), '--', url], 120000).then(summarizePlaylist).catch(() => null)
+      : Promise.resolve(null);
+    if (isPlaylistOnly(url)) {
+      const pl = await plPromise;
+      if (!pl) return res.status(422).json({ error: 'No se pudo leer esa lista de reproducción (puede ser privada).' });
+      return res.json({
+        url, id: pl.id, title: pl.title, channel: pl.channel, duration: pl.entries.reduce((t, e) => t + (e.duration || 0), 0),
+        thumbnail: pl.entries[0].thumbnail, site: 'Lista', heights: [144, 240, 360, 480, 720, 1080], sizes: {}, hasVideo: true,
+        isLive: false, playlist: pl, playlistOnly: true
+      });
+    }
     const d = await runJson(['-J', '--no-playlist', '--no-warnings', '--', url]);
     const formats = d.formats || [];
     const bestAudio = formats.filter(f => f.acodec && f.acodec !== 'none' && (!f.vcodec || f.vcodec === 'none'))
@@ -241,7 +327,8 @@ app.get('/api/info', async (req, res) => {
       heights,
       sizes,
       hasVideo: heights.length > 0 || formats.some(f => f.vcodec !== 'none' && VIDEO_EXT.includes(f.ext)), // enlaces directos sin altura declarada
-      isLive: !!d.is_live
+      isLive: !!d.is_live,
+      playlist: await plPromise
     });
   } catch (e) { res.status(422).json({ error: e.message }); }
 });
@@ -322,7 +409,7 @@ function runJob(job) {
   return new Promise(resolve => {
     if (!fs.existsSync(YTDLP)) { job.status = 'error'; job.error = 'Falta yt-dlp. Ejecuta "npm run setup".'; return resolve(); }
     job.status = 'downloading';
-    const p = spawn(YTDLP, buildArgs(job), { windowsHide: true });
+    const p = spawnYtdlp(buildArgs(job));
     job.proc = p;
     let buf = '', errTail = '';
     const onLine = raw => {
@@ -353,9 +440,17 @@ function runJob(job) {
       if (job.status === 'canceled') return resolve();
       if (code === 0 && job.file) { job.status = 'done'; job.percent = 100; job.speed = ''; job.eta = ''; }
       else {
-        job.status = 'error';
         const last = errTail.trim().split('\n').filter(Boolean).pop() || 'La descarga falló.';
         job.error = friendlyError(last);
+        if (!job.autoUpdated && OUTDATED.test(errTail)) {
+          // Puede ser que el sitio cambió: se actualiza yt-dlp y, si había versión nueva, se reintenta una vez.
+          job.autoUpdated = true; job.status = 'updating';
+          updateYtdlp().then(r => {
+            if (!jobs.has(job.id) || job.status !== 'updating') return;
+            if (r.changed) { Object.assign(job, { status: 'queued', percent: 0, speed: '', eta: '', file: null, error: null, fid: null, stream: 0, streamMax: 0 }); queue.push(job); pump(); }
+            else job.status = 'error';
+          });
+        } else job.status = 'error';
       }
       resolve();
     });
@@ -366,25 +461,31 @@ const FORMATS = { video: ['mp4', 'webm', 'mkv'], audio: ['mp3', 'm4a', 'opus', '
 
 app.post('/api/download', (req, res) => {
   const b = req.body || {};
-  const url = parseUrl(b.url);
+  // Un solo enlace ({ url, title, thumbnail }) o varios a la vez ({ items: [...] }, p. ej. una lista de reproducción).
+  const many = Array.isArray(b.items);
+  const list = (many ? b.items.slice(0, PLAYLIST_MAX) : [b]).map(it => ({ url: parseUrl(it && it.url), title: it && it.title, thumbnail: it && it.thumbnail })).filter(it => it.url);
   const kind = b.kind === 'audio' ? 'audio' : 'video';
   const format = String(b.format || '').toLowerCase();
-  if (!url) return res.status(400).json({ error: 'Enlace no válido.' });
+  if (!list.length) return res.status(400).json({ error: 'Enlace no válido.' });
   if (!FORMATS[kind].includes(format)) return res.status(400).json({ error: 'Formato no permitido.' });
   let quality;
   if (kind === 'audio') quality = [128, 192, 256, 320].includes(Number(b.quality)) ? Number(b.quality) : 192;
   else quality = b.quality === 'best' ? 'best' : [144, 240, 360, 480, 720, 1080, 1440, 2160].includes(Number(b.quality)) ? Number(b.quality) : 720;
 
-  const job = {
-    id: crypto.randomUUID(), url, kind, format, quality,
-    title: String(b.title || url).slice(0, 200), thumbnail: String(b.thumbnail || ''),
-    status: 'queued', percent: 0, speed: '', eta: '', file: null, error: null, created: Date.now(), proc: null,
-    fid: null, stream: 0, streamMax: 0, owner: ownerOf(req), dir: userDir(req)
-  };
-  jobs.set(job.id, job);
-  queue.push(job);
+  const owner = ownerOf(req), dir = userDir(req), now = Date.now();
+  const created = list.map((it, i) => {
+    const job = {
+      id: crypto.randomUUID(), url: it.url, kind, format, quality,
+      title: String(it.title || it.url).slice(0, 200), thumbnail: String(it.thumbnail || ''),
+      status: 'queued', percent: 0, speed: '', eta: '', file: null, error: null, created: now - i, proc: null, // -i: conserva el orden de la lista
+      fid: null, stream: 0, streamMax: 0, owner, dir
+    };
+    jobs.set(job.id, job);
+    queue.push(job);
+    return job;
+  });
   pump();
-  res.status(201).json(publicJob(job));
+  res.status(201).json(many ? created.map(publicJob) : publicJob(created[0]));
 });
 
 const publicJob = j => ({ id: j.id, title: j.title, thumbnail: j.thumbnail, kind: j.kind, format: j.format, quality: j.quality, status: j.status, percent: j.percent, speed: j.speed, eta: j.eta, file: j.file, error: j.error, created: j.created });
@@ -407,7 +508,7 @@ app.post('/api/jobs/:id/retry', (req, res) => {
 app.delete('/api/jobs/:id', (req, res) => {
   const j = jobs.get(req.params.id);
   if (!j || j.owner !== ownerOf(req)) return res.status(404).json({ error: 'No existe esa descarga.' });
-  if (j.status === 'queued' || j.status === 'downloading' || j.status === 'converting') { j.status = 'canceled'; killTree(j.proc); }
+  if (['queued', 'downloading', 'converting', 'updating'].includes(j.status)) { j.status = 'canceled'; killTree(j.proc); }
   else jobs.delete(j.id);
   res.json({ ok: true });
 });
@@ -444,7 +545,11 @@ app.delete('/api/files/:name', (req, res) => {
   res.json({ ok: true });
 });
 
-app.get('/api/health', (req, res) => res.json({ ytdlp: fs.existsSync(YTDLP), ffmpeg: fs.existsSync(path.join(BIN, 'ffmpeg' + EXE)) }));
+app.get('/api/health', (req, res) => res.json({
+  ytdlp: fs.existsSync(YTDLP), ffmpeg: fs.existsSync(path.join(BIN, 'ffmpeg' + EXE)),
+  ytdlpVersion: YTDLP_VERSION, jsRuntime: path.basename(JS.path), cookies: cookieSource(), updating: !!updating
+}));
+app.post('/api/ytdlp/update', async (req, res) => res.json(await updateYtdlp()));
 
 app.use(express.static(path.join(ROOT, 'public')));
 
@@ -453,6 +558,8 @@ function start() {
     const srv = app.listen(PORT, HOST, () => {
       console.log('Tonea lista en http://localhost:' + PORT + (G.id ? ' (inicio de sesión con Google activo)' : ' (sin Google: define GOOGLE_CLIENT_ID para activarlo)'));
       if (EXPOSED) console.log('Accesible desde tu red local. Clave de acceso (para ?t=): ' + TOKEN);
+      console.log('yt-dlp ' + (YTDLP_VERSION || 'no instalado') + ' · JavaScript: ' + JS.path + (cookieSource() ? ' · cookies: ' + cookieSource() : ''));
+      setTimeout(autoUpdateDaily, 3000).unref();
       resolve(srv);
     });
     srv.on('error', reject);

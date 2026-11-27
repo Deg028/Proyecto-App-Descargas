@@ -209,23 +209,29 @@ function renderOptions() {
   }
   const q = video ? hLabel(state.vq) : (state.af === 'wav' ? 'sin pérdida' : state.aq + ' kbps');
   $('#ctaText').textContent = `Descargar ${(video ? state.vf : state.af).toUpperCase()} · ${q}`;
+  const pl = i.playlist;
+  $('#plBox').hidden = !pl; $('#btnDownload').hidden = !!i.playlistOnly;
+  if (pl) {
+    $('#plText').textContent = (i.playlistOnly ? 'Lista «' + pl.title + '»' : 'Este video es parte de la lista «' + pl.title + '»') + ': ' + pl.count + (pl.count === 1 ? ' elemento' : ' elementos') + '. Se usan el formato y la calidad elegidos; si un video no tiene esa calidad, se baja la más cercana por debajo.';
+    $('#plCta').textContent = 'Descargar ' + (pl.count === 1 ? 'el elemento' : 'los ' + pl.count) + ' de la lista';
+  }
   $('#optNote').textContent = i.isLive ? 'Es una transmisión en vivo: puede que no se pueda descargar.' : (video ? 'Los tamaños son aproximados.' : 'Se extrae el audio y se convierte al formato elegido.');
 }
 
-async function startDownload() {
-  const i = state.info, video = state.kind === 'video', btn = $('#btnDownload');
+async function startDownload(all) {
+  const i = state.info, video = state.kind === 'video', btn = $(all === true ? '#btnDownloadAll' : '#btnDownload');
+  const opts = { kind: state.kind, format: video ? state.vf : state.af, quality: video ? state.vq : state.aq };
+  const what = all === true ? { items: i.playlist.entries.map(e => ({ url: e.url, title: e.title, thumbnail: e.thumbnail })) } : { url: i.url, title: i.title, thumbnail: i.thumbnail };
   btn.disabled = true;
   try {
-    await api('/api/download', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: i.url, kind: state.kind, format: video ? state.vf : state.af, quality: video ? state.vq : state.aq, title: i.title, thumbnail: i.thumbnail })
-    });
-    toast('Descarga iniciada'); show('downloads'); loadJobs();
+    await api('/api/download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...opts, ...what }) });
+    toast(all === true ? what.items.length + ' descargas en cola' : 'Descarga iniciada'); show('downloads'); loadJobs();
   } catch (e) { toast(e.message); } finally { btn.disabled = false; }
 }
 
 /* ============ descargas ============ */
-const STATUS = { queued: 'En cola', downloading: 'Descargando…', converting: 'Convirtiendo…', done: 'Completada', error: 'Error', canceled: 'Cancelada' };
+const ACTIVE = ['queued', 'downloading', 'converting', 'updating'];
+const STATUS = { queued: 'En cola', downloading: 'Descargando…', converting: 'Convirtiendo…', updating: 'Actualizando yt-dlp y reintentando…', done: 'Completada', error: 'Error', canceled: 'Cancelada' };
 let prevStatus = {};
 async function loadJobs() {
   if (document.hidden) return;
@@ -235,7 +241,7 @@ async function loadJobs() {
       if (prevStatus[j.id] && prevStatus[j.id] !== 'done' && j.status === 'done') { toast('Listo: ' + j.title); loadFiles(); }
       prevStatus[j.id] = j.status;
     }
-    $('#navDot').hidden = !jobs.some(j => ['queued', 'downloading', 'converting'].includes(j.status));
+    $('#navDot').hidden = !jobs.some(j => ACTIVE.includes(j.status));
     if ($('#view-downloads').classList.contains('active')) renderJobs();
   } catch { /* servidor no disponible */ }
 }
@@ -243,7 +249,7 @@ function renderJobs() {
   const jobs = state.jobs.filter(j => j.status !== 'canceled');
   $('#jobEmpty').hidden = jobs.length > 0;
   $('#jobList').innerHTML = jobs.map(j => {
-    const active = ['queued', 'downloading', 'converting'].includes(j.status);
+    const active = ACTIVE.includes(j.status);
     const q = j.kind === 'audio' ? (j.format === 'wav' ? '' : ' · ' + j.quality + ' kbps') : ' · ' + (j.quality === 'best' ? 'máxima' : hLabel(j.quality));
     const pct = j.status === 'converting' ? 100 : Math.round(j.percent);
     const extra = j.status === 'downloading' ? [j.speed, j.eta ? 'quedan ' + j.eta : ''].filter(Boolean).join(' · ') : '';
@@ -550,7 +556,13 @@ $('#brOpenExternal').addEventListener('click', () => window.open(SITE_START, '_b
 
 $('#tabVideo').addEventListener('click', () => { state.kind = 'video'; renderOptions(); });
 $('#tabAudio').addEventListener('click', () => { state.kind = 'audio'; renderOptions(); });
-$('#btnDownload').addEventListener('click', startDownload);
+$('#btnDownload').addEventListener('click', () => startDownload(false));
+$('#btnDownloadAll').addEventListener('click', () => startDownload(true));
+$('#btnUpdYtdlp').addEventListener('click', async e => {
+  const b = e.currentTarget; b.disabled = true; b.textContent = 'Buscando…';
+  try { toast((await api('/api/ytdlp/update', { method: 'POST' })).message); } catch (err) { toast(err.message); }
+  finally { b.disabled = false; b.textContent = 'Buscar actualización de yt-dlp'; loadHealth(); }
+});
 
 const inp = $('#inpUrl');
 // onda del campo: barras que respiran en reposo y suben al escribir o analizar
@@ -595,4 +607,10 @@ if (document.fonts) document.fonts.ready.then(moveTabInd);
 setInterval(loadJobs, 1200); loadJobs(); loadFiles();
 const startView = location.hash.slice(1);
 if (['home', 'explore', 'downloads', 'library', 'browser'].includes(startView) && !(startView === 'browser' && !desktop)) show(startView);
-fetch('/api/health').then(r => r.json()).then(h => { if (!h.ytdlp || !h.ffmpeg) toast('Faltan herramientas: ejecuta "npm run setup".'); }).catch(() => {});
+function loadHealth(warn) {
+  return api('/api/health').then(h => {
+    $('#ytdlpInfo').textContent = h.ytdlp ? 'yt-dlp ' + h.ytdlpVersion + (h.updating ? ' (actualizando…)' : '') + (h.cookies ? ' · cookies: ' + h.cookies : '') : 'yt-dlp no está instalado';
+    if (warn && (!h.ytdlp || !h.ffmpeg)) toast('Faltan herramientas: ejecuta "npm run setup".');
+  }).catch(() => {});
+}
+loadHealth(true);

@@ -84,6 +84,10 @@
       <div class="group" id="qualityGroup"><span class="label" id="qualityLabel">Calidad</span><div id="qualityTiles" class="tiles"></div></div>
       <p class="muted small" id="optNote"></p>
       <button class="btn primary big-btn" id="btnDownload"><i data-icon="download"></i><span id="ctaText">Descargar</span></button>
+      <div class="group" id="plBox" hidden>
+        <p class="muted small" id="plText"></p>
+        <button class="btn secondary big-btn" id="btnDownloadAll"><i data-icon="download"></i><span id="plCta">Descargar la lista</span></button>
+      </div>
     </section>
 
     <!-- EXPLORAR -->
@@ -167,6 +171,7 @@
       <h1 class="page-title">Descargas</h1>
       <div id="jobList" class="list"></div>
       <div id="jobEmpty" class="empty" hidden><i data-icon="download"></i><p>No hay descargas todavía.</p><button class="btn primary" data-go="home">Pegar un enlace</button></div>
+      <div class="tool-row"><span class="muted small" id="ytdlpInfo"></span><button class="btn outline" id="btnUpdYtdlp">Buscar actualización de yt-dlp</button></div>
     </section>
 
     <!-- BIBLIOTECA -->

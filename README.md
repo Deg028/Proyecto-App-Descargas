@@ -17,6 +17,14 @@ npm start       # solo servidor: abre http://localhost:3000 en tu navegador
 | Abrir otros sitios (Vimeo, TikTok…) dentro de Tonea | **Sí** | No (los sitios bloquean mostrarse dentro de otra página) |
 | Inicio de sesión con Google | Sí | Sí |
 
+## Descargas con yt-dlp (YouTube, listas y otros sitios)
+
+- **YouTube necesita un intérprete de JavaScript.** Tonea usa Node.js (el que ya tienes instalado; en la app de escritorio lo busca en el sistema). Si quieres otro, define `JS_RUNTIME` en `.env` con la ruta del ejecutable.
+- **yt-dlp se actualiza solo:** al arrancar (como mucho una vez al día) y cuando una descarga falla con un error típico de versión vieja; en ese caso actualiza y reintenta una vez. También puedes forzarlo en *Descargas → Buscar actualización de yt-dlp* o con `npm run update-ytdlp`. Para desactivarlo: `TONEA_NO_AUTOUPDATE=1`.
+- **Listas de reproducción:** pega el enlace de una lista (o de un video dentro de una lista) y aparece *Descargar los N de la lista* (máximo 200), con el formato y la calidad elegidos.
+- **Cookies (opcional), para sitios que exigen sesión como Instagram:** guarda un archivo `cookies.txt` (formato Netscape) en `data/`, o define `COOKIES_FROM_BROWSER=firefox` en `.env`. En Windows, las versiones recientes de Chrome cifran sus cookies de forma que yt-dlp no suele poder leerlas (Edge puede tener el mismo problema); con Firefox suele funcionar. Usa una cuenta secundaria: los sitios pueden bloquear cuentas por actividad automática.
+- Nada de esto está garantizado: los sitios cambian y a veces yt-dlp tarda unos días en adaptarse.
+
 ## Ver videos dentro de Tonea (sin la interfaz de YouTube)
 
 **Explorar** muestra videos por categorías o por búsqueda, con la interfaz de Tonea. Al tocar uno se reproduce en el reproductor propio (YouTube IFrame Player API) con controles de Tonea: pausa, barra de progreso, volumen y pantalla completa, y la lista **Más como este**. Funciona tanto en la app de escritorio como en el navegador.
@@ -102,7 +110,7 @@ El código de las fuentes está en `shared/providers/` y lo comparten la app mó
 
 ## Problemas frecuentes
 
-- **Falla una descarga que antes funcionaba:** `npm run update-ytdlp` (los sitios cambian a menudo).
+- **Falla una descarga que antes funcionaba:** Tonea intenta actualizar yt-dlp solo; si no basta, `npm run update-ytdlp` (los sitios cambian a menudo).
 - **`npm run app` da `Cannot read properties of undefined (reading 'requestSingleInstanceLock')`:** tu terminal tiene `ELECTRON_RUN_AS_NODE` definida. Quítala (`Remove-Item Env:ELECTRON_RUN_AS_NODE`) y vuelve a lanzar.
 - **Puerto ocupado:** cambia `PORT` en `.env`.
 
