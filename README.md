@@ -63,6 +63,7 @@ La app vive en esta misma carpeta (`EscritorioAppDescarga`). No hay instalador: 
 | Abrirla | doble clic en **Iniciar Tonea.cmd**, o `npm run app` |
 | Con herramientas de desarrollo (consola, red, elementos) | `Iniciar Tonea.cmd debug` o `npm run app:debug` |
 | Con tamaño de teléfono (390×844) y herramientas | `Iniciar Tonea.cmd movil` o `npm run app:movil` |
+| Para usarla desde el teléfono (misma Wi-Fi) | doble clic en **Iniciar Tonea telefono.cmd**, o `npm run app:lan` |
 | Archivos de la interfaz (se ven al recargar con Ctrl+R) | `public/` (index.html, style.css, app.js) |
 | Servidor y descargas | `server.js`, carpeta `downloads/` |
 | Ventana principal de Electron | `main.js` |
@@ -102,7 +103,7 @@ Cómo probarla:
 
 Expo Go no puede ejecutar yt-dlp, así que el teléfono usa tu PC como motor de descarga (misma Wi-Fi, uso personal):
 
-1. En el PC abre Tonea con `Iniciar Tonea.cmd lan` (o `npm run app:lan`). La primera vez Windows puede preguntar por el firewall: permite **redes privadas**.
+1. En el PC abre Tonea con doble clic en **Iniciar Tonea telefono.cmd** (o `npm run app:lan` en una terminal). La primera vez Windows puede preguntar por el firewall: permite **redes privadas**.
 2. En el PC, pulsa el icono de cuenta (arriba a la derecha) → **Usar desde el teléfono**: verás un código QR con la clave de acceso incluida.
 3. En el teléfono: *Ajustes → Conectar con Tonea del PC → Escanear código QR*.
 4. Descarga como en el PC. Al pulsar **Guardar** en una descarga terminada, el archivo se copia a la Biblioteca del teléfono.
@@ -113,7 +114,7 @@ El código de las fuentes está en `shared/providers/` y lo comparten la app mó
 
 ## Uso desde el móvil
 
-`Iniciar Tonea.cmd lan` (o `$env:HOST="0.0.0.0"; npm start`) y abre `http://IP-DEL-PC:3000/?t=CLAVE` en la misma red Wi-Fi. La app de escritorio muestra ese enlace con su QR en *Cuenta → Usar desde el teléfono*.
+Doble clic en **Iniciar Tonea telefono.cmd** (o `$env:HOST="0.0.0.0"; npm start`) y abre `http://IP-DEL-PC:3000/?t=CLAVE` en la misma red Wi-Fi. La app de escritorio muestra ese enlace con su QR en *Cuenta → Usar desde el teléfono*.
 
 **Clave de acceso:** cuando `HOST` no es localhost, todo lo que llegue desde otro dispositivo exige una clave (`TONEA_TOKEN` en `.env`, o una generada y guardada en `data/token.txt`). La primera visita con `?t=CLAVE` guarda una cookie y ya no hace falta repetirla. Desde el propio PC no se pide. Si pones Tonea detrás de un proxy inverso o túnel, las peticiones llegan como locales y se saltan la clave: protégelo en el proxy. Sigue siendo HTTP sin cifrar: úsalo solo en redes de confianza. El navegador integrado no está disponible en el móvil.
 

@@ -93,7 +93,7 @@ export default function PcWebView({ onBack, onDownloaded }) {
         <View style={s.box}>
           <Text style={s.logo} accessibilityRole="header">Tonea del PC</Text>
           <Text style={s.p}>{failed ? 'No se pudo conectar con el PC.' : 'Descarga a través de tu PC.'}</Text>
-          <Text style={s.small}>1. En el PC abre Tonea con «Iniciar Tonea.cmd lan» (o npm run app:lan).{'\n'}2. Allí pulsa el icono de cuenta → Usar desde el teléfono.{'\n'}3. Escanea su código. El teléfono y el PC deben estar en la misma Wi-Fi.</Text>
+          <Text style={s.small}>1. En el PC abre Tonea con «Iniciar Tonea telefono.cmd» (doble clic).{'\n'}2. Allí pulsa el icono de cuenta → Usar desde el teléfono.{'\n'}3. Escanea su código. El teléfono y el PC deben estar en la misma Wi-Fi.</Text>
           <Pressable accessibilityRole="button" onPress={startScan} style={({ pressed }) => [s.btn, pressed && { opacity: 0.8 }]}><Text style={s.btnT}>Escanear código QR</Text></Pressable>
           <Text style={s.label} nativeID="lbl">O pega el enlace</Text>
           <TextInput accessibilityLabelledBy="lbl" style={s.input} value={draft} onChangeText={setDraft} placeholder="192.168.1.25:3000/?t=clave" placeholderTextColor={C.muted}

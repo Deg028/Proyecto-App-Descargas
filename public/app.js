@@ -484,7 +484,7 @@ async function loadPhone() {
   try { r = await api('/api/lan'); } catch { el.innerHTML = ''; return; }
   const head = '<h3>Usar desde el teléfono</h3>';
   if (!r.exposed) {
-    el.innerHTML = head + '<p class="muted small">Para que tu teléfono descargue a través de este PC (misma Wi-Fi), abre Tonea con <code>Iniciar Tonea.cmd lan</code> o <code>npm run app:lan</code>.</p>';
+    el.innerHTML = head + '<p class="muted small">Para que tu teléfono descargue a través de este PC (misma Wi-Fi), abre Tonea con doble clic en <code>Iniciar Tonea telefono.cmd</code> (o <code>npm run app:lan</code>).</p>';
     return;
   }
   el.innerHTML = head + '<p class="muted small">En la app Tonea del teléfono ve a <b>Ajustes → Conectar con Tonea del PC</b> y escanea el código. Si hay varios, el primero suele ser tu Wi-Fi.</p>' +
